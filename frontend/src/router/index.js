@@ -3,12 +3,22 @@ import { useAuthStore } from '../store/auth'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+// Импортируем новый компонент страницы
+import ListView from '../views/ListView.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home,
+    meta: { requiresAuth: true }
+  },
+  // Новый маршрут для просмотра конкретного списка
+  {
+    path: '/lists/:id',
+    name: 'ListView',
+    component: ListView,
+    props: true, // Позволяет передавать :id как пропс в компонент
     meta: { requiresAuth: true }
   },
   {

@@ -9,13 +9,18 @@
           <input id="title" v-model="form.title" type="text" required>
         </div>
         <div class="form-group">
-          <label for="description">Описание</label>
+          <label for="description">Краткое описание</label>
           <textarea id="description" v-model="form.description"></textarea>
         </div>
         <div class="form-group">
-          <label for="details">Дополнительные данные (JSON)</label>
-          <textarea id="details" v-model="detailsAsJson" rows="4"></textarea>
-          <small v-if="jsonError" class="json-error">Некорректный формат JSON</small>
+          <label>Детальное описание</label>
+          <!-- НОВЫЙ КОМПОНЕНТ: Редактор текста -->
+          <QuillEditor
+            theme="snow"
+            :toolbar="toolbarOptions"
+            v-model:content="form.details"
+            contentType="html"
+          />
         </div>
         <div class="form-actions">
           <button type="button" @click="$emit('close')" class="btn-cancel">Отмена</button>
@@ -28,6 +33,9 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
+// Импортируем редактор и его стили
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 const props = defineProps({
   isVisible: Boolean,
@@ -37,22 +45,23 @@ const props = defineProps({
 const emit = defineEmits(['close', 'save']);
 
 const form = ref({});
-const detailsAsJson = ref('');
-const jsonError = ref(false);
+
+// Настройки панели инструментов редактора
+const toolbarOptions = [
+  ['bold', 'italic', 'underline'], // полужирный, курсив, подчеркнутый
+  ['link'], // кнопка для вставки ссылки
+  [{ 'list': 'ordered'}, { 'list': 'bullet' }], // нумерованный и маркированный списки
+  ['clean'] // очистка форматирования
+];
 
 watch(() => props.isVisible, (newValue) => {
   if (newValue) {
-    jsonError.value = false;
     if (props.itemToEdit) {
-      // Режим редактирования
+      // Режим редактирования: копируем данные, включая HTML-описание
       form.value = { ...props.itemToEdit };
-      detailsAsJson.value = props.itemToEdit.details
-        ? JSON.stringify(props.itemToEdit.details, null, 2)
-        : '';
     } else {
-      // Режим создания
-      form.value = { title: '', description: '' };
-      detailsAsJson.value = '';
+      // Режим создания: обнуляем поля
+      form.value = { title: '', description: '', details: '' };
     }
   }
 });
@@ -62,24 +71,13 @@ const formTitle = computed(() => {
 });
 
 function submitForm() {
-  let detailsObject = null;
-  jsonError.value = false;
-
-  if (detailsAsJson.value.trim()) {
-    try {
-      detailsObject = JSON.parse(detailsAsJson.value);
-    } catch (e) {
-      jsonError.value = true;
-      return; // Остановить отправку, если JSON невалиден
-    }
-  }
-
+  // Теперь не нужно парсить JSON, просто отправляем форму как есть
   const payload = {
     title: form.value.title,
     description: form.value.description,
-    details: detailsObject,
+    details: form.value.details,
   };
-
+  
   emit('save', payload);
 }
 </script>
@@ -103,7 +101,7 @@ function submitForm() {
   padding: 2rem;
   border-radius: 8px;
   width: 90%;
-  max-width: 500px;
+  max-width: 650px; /* Увеличим ширину для редактора */
 }
 .form-group {
   margin-bottom: 1.5rem;
@@ -122,10 +120,22 @@ input, textarea {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+  margin-top: 2rem;
 }
 .btn-save { background-color: #42b983; color: white; }
 .btn-cancel { background-color: #6c757d; color: white; }
 button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
-.json-error { color: red; font-size: 0.8rem; }
+
+/* Стили для редактора Quill могут потребовать небольшой корректировки */
+.form-group .ql-toolbar {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+.form-group .ql-container {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  min-height: 150px; /* Задаем минимальную высоту */
+  font-size: 1rem;
+}
 </style>
 <!-- --- КОНЕЦ ФАЙЛА: frontend/src/components/ItemFormModal.vue --- -->

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, JSON, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -60,7 +60,7 @@ class Item(Base):
     title = Column(String, index=True, nullable=False)
     description = Column(String, nullable=True)
     # Поле JSONB для хранения динамических данных (например, URL для вишлиста, автор для книги)
-    details = Column(JSON, nullable=True) 
+    details = Column(Text, nullable=True) 
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

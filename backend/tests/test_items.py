@@ -64,12 +64,12 @@ def test_update_item(client: TestClient):
     update_response = client.put(
         f"/items/{item_id}",
         headers=headers,
-        json={"title": "Updated Item Title", "details": {"url": "http://example.com"}},
+        json={"title": "Updated Item Title", "details": "<p>Updated details</p>"},
     )
     assert update_response.status_code == 200
     data = update_response.json()
     assert data["title"] == "Updated Item Title"
-    assert data["details"]["url"] == "http://example.com"
+    assert data["details"] == "<p>Updated details</p>"
     assert data["id"] == item_id
 
 def test_delete_item(client: TestClient):

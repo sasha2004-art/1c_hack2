@@ -27,7 +27,7 @@ class UserRead(UserBase):
 class ItemBase(BaseModel):
     title: str
     description: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[str] = None
 
 class ItemCreate(ItemBase):
     pass
@@ -35,7 +35,7 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[str] = None
 
 class ItemRead(ItemBase):
     id: int

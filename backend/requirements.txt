@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+psycopg2-binary
+email-validator
+
+# Зависимости для аутентификации
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+
+# Зависимости для тестирования
+pytest
+httpx

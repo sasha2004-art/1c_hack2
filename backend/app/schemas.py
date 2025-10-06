@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from .models import ListType, PrivacyLevel
 
@@ -22,6 +22,30 @@ class UserRead(UserBase):
         # Разрешает Pydantic читать данные из атрибутов объекта SQLAlchemy
         from_attributes = True
 
+# --- Схемы для элементов списка ---
+
+class ItemBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+class ItemCreate(ItemBase):
+    pass
+
+class ItemUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+class ItemRead(ItemBase):
+    id: int
+    list_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+        
 # --- Схемы для списков ---
 
 class ListBase(BaseModel):
@@ -44,6 +68,8 @@ class ListRead(ListBase):
     owner_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Добавляем элементы в схему для чтения списка
+    items: list[ItemRead] = []
 
     class Config:
         from_attributes = True

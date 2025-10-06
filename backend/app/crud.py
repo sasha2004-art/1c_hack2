@@ -48,3 +48,33 @@ def delete_list(db: Session, db_list: models.List):
     db.delete(db_list)
     db.commit()
     return db_list
+
+# --- CRUD для Элементов ---
+
+def get_item(db: Session, item_id: int) -> Optional[models.Item]:
+    """Получить один элемент по его ID."""
+    return db.query(models.Item).filter(models.Item.id == item_id).first()
+
+def create_list_item(db: Session, item_data: schemas.ItemCreate, list_id: int) -> models.Item:
+    """Создать новый элемент в списке."""
+    db_item = models.Item(**item_data.dict(), list_id=list_id)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+def update_item(db: Session, db_item: models.Item, item_data: schemas.ItemUpdate) -> models.Item:
+    """Обновить существующий элемент."""
+    update_data = item_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_item, key, value)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+def delete_item(db: Session, db_item: models.Item):
+    """Удалить элемент."""
+    db.delete(db_item)
+    db.commit()
+    return db_item

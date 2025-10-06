@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -45,3 +45,25 @@ class List(Base):
     
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     owner = relationship("User", back_populates="lists")
+    
+    # Добавляем связь с элементами
+    items = relationship("Item", back_populates="list", cascade="all, delete-orphan")
+
+
+class Item(Base):
+    """
+    Модель элемента внутри списка.
+    """
+    __tablename__ = "items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    description = Column(String, nullable=True)
+    # Поле JSONB для хранения динамических данных (например, URL для вишлиста, автор для книги)
+    details = Column(JSON, nullable=True) 
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    list_id = Column(Integer, ForeignKey("lists.id"), nullable=False)
+    list = relationship("List", back_populates="items")

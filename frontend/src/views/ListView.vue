@@ -8,7 +8,10 @@
       <div class="list-header">
         <h1>{{ list.title }}</h1>
         <p>{{ list.description }}</p>
-        <button @click="openAddItemModal" class="btn-add">Добавить элемент</button>
+        <div class="header-actions">
+          <button @click="openAddItemModal" class="btn-add">Добавить элемент</button>
+          <button @click="handleDeleteList" class="btn-delete">Удалить список</button>
+        </div>
       </div>
 
       <div v-if="list.items && list.items.length > 0" class="items-grid">
@@ -40,6 +43,7 @@ import { useListsStore } from '../store/lists';
 import { storeToRefs } from 'pinia';
 import ItemCard from '../components/ItemCard.vue';
 import ItemFormModal from '../components/ItemFormModal.vue';
+import { useRouter } from 'vue-router';
 
 const props = defineProps({
   id: {
@@ -53,6 +57,7 @@ const { currentList: list, isLoading, error } = storeToRefs(listsStore);
 
 const isModalVisible = ref(false);
 const itemToEdit = ref(null);
+const router = useRouter();
 
 onMounted(() => {
   listsStore.fetchListById(props.id);
@@ -93,6 +98,17 @@ async function handleDeleteItem(itemId) {
     await listsStore.deleteItem(itemId);
   }
 }
+
+async function handleDeleteList() {
+  if (!list.value) return;
+  if (!confirm('Вы уверены, что хотите полностью удалить этот список? Это действие не обратимо.')) return;
+  try {
+    await listsStore.deleteList(list.value.id);
+    router.push({ name: 'Home' });
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Не удалось удалить список.');
+  }
+}
 </script>
 
 <style scoped>
@@ -112,6 +128,18 @@ async function handleDeleteItem(itemId) {
   margin-top: 1rem;
   padding: 10px 20px;
   background-color: #42b983;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-right: 1rem;
+}
+
+.btn-delete {
+  margin-top: 1rem;
+  padding: 10px 20px;
+  background-color: #e74c3c;
   color: white;
   border: none;
   border-radius: 5px;

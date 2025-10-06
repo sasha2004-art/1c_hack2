@@ -10,6 +10,9 @@
         <p>{{ list.description }}</p>
         <div class="header-actions">
           <button @click="openAddItemModal" class="btn-add">Добавить элемент</button>
+          <button @click="openEditListModal" class="btn-edit">Редактировать список</button>
+        </div>
+        <div class="header-actions-bottom">
           <button @click="handleDeleteList" class="btn-delete">Удалить список</button>
         </div>
       </div>
@@ -35,15 +38,24 @@
     @close="closeModal"
     @save="handleSaveItem"
   />
+  <ListFormModal
+    :list-to-edit="list"
+    :can-change-privacy="canChangePrivacy"
+    v-if="isListModalVisible"
+    @close="closeListModal"
+    @save="handleSaveList"
+  />
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useListsStore } from '../store/lists';
 import { storeToRefs } from 'pinia';
 import ItemCard from '../components/ItemCard.vue';
 import ItemFormModal from '../components/ItemFormModal.vue';
+import ListFormModal from '../components/ListFormModal.vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '../store/auth';
 
 const props = defineProps({
   id: {
@@ -54,13 +66,20 @@ const props = defineProps({
 
 const listsStore = useListsStore();
 const { currentList: list, isLoading, error } = storeToRefs(listsStore);
+const authStore = useAuthStore();
 
 const isModalVisible = ref(false);
 const itemToEdit = ref(null);
 const router = useRouter();
+const isListModalVisible = ref(false);
+const canChangePrivacy = ref(true);
 
 onMounted(() => {
   listsStore.fetchListById(props.id);
+});
+
+watch([list, () => authStore.user], () => {
+  canChangePrivacy.value = !!(list.value && authStore.user && list.value.owner_id === authStore.user.id);
 });
 
 function openAddItemModal() {
@@ -76,6 +95,26 @@ function openEditItemModal(item) {
 function closeModal() {
   isModalVisible.value = false;
   itemToEdit.value = null;
+}
+
+function openEditListModal() {
+  isListModalVisible.value = true;
+}
+
+function closeListModal() {
+  isListModalVisible.value = false;
+}
+
+async function handleSaveList(listData) {
+  if (!list.value) return;
+  try {
+    await listsStore.updateList(list.value.id, listData);
+    // обновить локально
+    await listsStore.fetchListById(list.value.id);
+    closeListModal();
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Не удалось сохранить изменения списка.');
+  }
 }
 
 async function handleSaveItem(itemData) {
@@ -146,10 +185,27 @@ async function handleDeleteList() {
   cursor: pointer;
   font-size: 1rem;
 }
+
+.btn-edit {
+  margin-top: 1rem;
+  padding: 10px 20px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-right: 1rem;
+}
 .items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
+}
+.header-actions-bottom {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
 }
 .no-items-message {
   text-align: center;

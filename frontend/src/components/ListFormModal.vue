@@ -20,7 +20,7 @@
             <option value="movies">Movies</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" v-if="!props.listToEdit">
           <label for="privacy_level">Уровень приватности</label>
           <select id="privacy_level" v-model="form.privacy_level">
             <option value="private">Приватный</option>

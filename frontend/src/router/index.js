@@ -5,6 +5,7 @@ import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 // Импортируем новый компонент страницы
 import ListView from '../views/ListView.vue'
+import PublicListView from '../views/PublicListView.vue'
 
 const routes = [
   {
@@ -20,6 +21,14 @@ const routes = [
     component: ListView,
     props: true, // Позволяет передавать :id как пропс в компонент
     meta: { requiresAuth: true }
+  },
+  // Direct public view for lists by id (no auth required)
+  {
+    path: '/public/lists/:id',
+    name: 'PublicListView',
+    component: PublicListView,
+    props: true,
+    meta: { requiresAuth: false }
   },
   {
     path: '/login',

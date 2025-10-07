@@ -20,7 +20,24 @@
               :item="item"
               :is-owner="isOwner"
             />
+            <!-- Блок с кнопками "Забронировать" и "Копировать" -->
             <div class="public-actions">
+              <!-- Кнопки бронирования показываются только для вишлистов и для гостей -->
+              <div v-if="list.list_type === 'wishlist' && !isOwner" class="reserve-action">
+                <!-- Если элемент забронирован -->
+                <button v-if="item.is_reserved"
+                        :disabled="!isReservedByMe(item.id)"
+                        @click="isReservedByMe(item.id) ? handleUnreserve(item.id) : null"
+                        class="btn"
+                        :class="isReservedByMe(item.id) ? 'btn-secondary' : 'btn-reserved'">
+                  {{ isReservedByMe(item.id) ? 'Снять бронь' : 'Забронировано' }}
+                </button>
+                <!-- Если элемент можно забронировать -->
+                <button v-else-if="canReserve(item)" @click="handleReserve(item.id)" class="btn btn-primary">
+                  Забронировать
+                </button>
+              </div>
+              <!-- Кнопка копирования, как и раньше -->
               <button
                 v-if="authStore.token && !isOwner"
                 class="btn btn-primary copy-button"
@@ -167,28 +184,6 @@ const handleSendFriendRequest = async () => {
   }
 };
 
-// Проверяем, забронирован ли элемент текущим пользователем
-const isReservedByMe = (itemId) => {
-  return userReservations.value.some(res => res.item_id === itemId);
-};
-
-// Определяем, можно ли показать кнопку "Забронировать"
-const canReserve = (item) => {
-  return currentUser.value &&         // 1. Пользователь авторизован
-         !isOwner.value &&            // 2. Он НЕ владелец
-         list.value?.list_type === 'wishlist' && // 3. Это вишлист
-         !item.is_reserved;           // 4. Элемент еще не забронирован
-};
-
-// Обработчик бронирования
-const handleReserve = async (itemId) => {
-  try {
-    await listsStore.reserveItem(itemId, publicKey.value);
-  } catch (e) {
-    alert(e.message || 'Произошла ошибка при бронировании');
-  }
-};
-
 // --- Этап 10: состояние и методы модалки копирования ---
 const isCopyModalVisible = ref(false);
 const itemToCopyId = ref(null);
@@ -220,14 +215,41 @@ const handleCopyConfirm = async () => {
   }
 };
 
-// Обработчик снятия брони
+// --- НОВЫЕ ФУНКЦИИ И ЛОГИКА ДЛЯ БРОНИРОВАНИЯ ---
+
+// Проверяем, забронирован ли элемент ТЕКУЩИМ пользователем
+const isReservedByMe = (itemId) => {
+  return userReservations.value.some(res => res.item_id === itemId);
+};
+
+// Определяем, можно ли показать кнопку "Забронировать"
+const canReserve = (item) => {
+  return currentUser.value &&         // 1. Пользователь авторизован
+         !isOwner.value &&            // 2. Он НЕ владелец
+         list.value?.list_type === 'wishlist' && // 3. Это вишлист
+         !item.is_reserved;           // 4. Элемент еще не забронирован
+};
+
+// Обработчик клика на "Забронировать"
+const handleReserve = async (itemId) => {
+  try {
+    await listsStore.reserveItem(itemId, publicKey.value);
+  } catch (e) {
+    alert(e.message || 'Произошла ошибка при бронировании');
+  }
+};
+
+// Обработчик клика на "Снять бронь"
 const handleUnreserve = async (itemId) => {
+  if (!confirm('Вы уверены, что хотите снять бронь с этого желания?')) return;
   try {
     await listsStore.unreserveItem(itemId, publicKey.value);
   } catch (e) {
     alert(e.message || 'Произошла ошибка при снятии брони');
   }
 };
+
+// --- КОНЕЦ НОВОЙ ЛОГИКИ ДЛЯ БРОНИРОВАНИЯ ---
 
 </script>
 
@@ -334,30 +356,44 @@ const handleUnreserve = async (itemId) => {
   margin-top: 10px;
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ КНОПКИ-ИКОНКИ --- */
+/* --- ИЗМЕНЕННЫЕ СТИЛИ ДЛЯ НИЖНЕЙ ПАНЕЛИ КАРТОЧКИ --- */
 .public-actions {
-  /* Заставляет кнопку растянуться на всю ширину родителя */
-  display: flex;
-}
-
-.copy-button {
-  width: 100%;
-  /* Убираем скругление верхних углов, чтобы кнопка прилегала к карточке */
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  /* Центрируем иконку внутри кнопки */
   display: flex;
   align-items: center;
-  justify-content: center;
-  /* Уменьшаем отступы, т.к. внутри иконка, а не текст */
+  justify-content: space-between; /* Размещает элементы по краям */
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background-color: rgba(0,0,0,0.02);
+}
+
+.reserve-action {
+  flex-grow: 1; /* Занимает все доступное место */
+  margin-right: 0.5rem; /* Отступ от кнопки копирования */
+}
+
+.reserve-action .btn {
+  width: 100%;
+}
+
+.btn-reserved {
+  background-color: #6c757d;
+  color: #fff;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn.copy-button {
   padding: 0.6rem;
+  flex-shrink: 0; /* Предотвращает сжатие кнопки */
 }
 
 .copy-button svg {
   width: 22px;
   height: 22px;
 }
-/* --- КОНЕЦ НОВЫХ СТИЛЕЙ --- */
+/* --- КОНЕЦ ИЗМЕНЕННЫХ СТИЛЕЙ --- */
 
 /* --- НОВЫЕ СТИЛИ ДЛЯ СТРАНИЦЫ ОШИБКИ --- */
 .access-denied-container {

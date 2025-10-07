@@ -1,0 +1,43 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build and Run Docker Compose",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "up",
+                "--build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Stop Docker Compose",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "down"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        }
+    ]
+}</content>
+<parameter name="filePath">c:\Users\user\Documents\1c_hack2\.vscode\tasks.json

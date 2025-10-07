@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, JSON, Text
+import uuid
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID # Импортируем тип UUID
 import enum
 from .db.base import Base
 
@@ -28,6 +30,15 @@ class PrivacyLevel(str, enum.Enum):
     PRIVATE = "private"
     PUBLIC = "public"
 
+# (Задача 1.1) Создаем Enum для названий тем
+class ThemeName(str, enum.Enum):
+    DEFAULT = "default"
+    LAVENDER = "lavender"
+    MINT = "mint"
+    SUNNY = "sunny"
+    COFFEE = "coffee"
+    NAVY = "navy"
+
 class List(Base):
     """
     Модель списка (например, вишлист, список дел).
@@ -35,10 +46,16 @@ class List(Base):
     __tablename__ = "lists"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Новое поле для публичной ссылки, генерируется автоматически
+    public_url_key = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, index=True, nullable=False)
+    
     title = Column(String, index=True, nullable=False)
     description = Column(String, nullable=True)
     list_type = Column(Enum(ListType), default=ListType.WISHLIST, nullable=False)
     privacy_level = Column(Enum(PrivacyLevel), default=PrivacyLevel.PRIVATE, nullable=False)
+    
+    # (Задача 1.4) Заменяем старые поля на одно поле для темы
+    theme_name = Column(Enum(ThemeName), default=ThemeName.DEFAULT, nullable=False)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -46,7 +63,6 @@ class List(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     owner = relationship("User", back_populates="lists")
     
-    # Добавляем связь с элементами
     items = relationship("Item", back_populates="list", cascade="all, delete-orphan")
 
 
@@ -58,9 +74,8 @@ class Item(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
-    description = Column(String, nullable=True)
-    # Поле JSONB для хранения динамических данных (например, URL для вишлиста, автор для книги)
-    details = Column(Text, nullable=True) 
+    # ИЗМЕНЕНИЕ: Поле description теперь имеет тип Text для хранения HTML
+    description = Column(Text, nullable=True) 
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

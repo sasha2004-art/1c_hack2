@@ -1,0 +1,70 @@
+/* Global Styles */
+:root {
+  /* Default Theme Variables - will be overridden by JS */
+  --bg-color: #f4f7fa;
+  --text-color: #333333;
+  --font-family: 'Arial', sans-serif;
+  --bg-image: none;
+  --card-bg-color: #ffffff;
+  --border-color: #dee2e6;
+  --primary-color: #007bff;
+  --primary-text-color: #ffffff;
+  --secondary-color: #dc3545;
+  --secondary-text-color: #ffffff;
+  --edit-color: #ffc107;
+  --edit-text-color: #212529;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  background-image: var(--bg-image);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex-grow: 1;
+  padding: 2rem 1rem;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Utility classes for buttons */
+.btn {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: opacity 0.2s;
+  font-size: 1rem;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: var(--secondary-text-color);
+}

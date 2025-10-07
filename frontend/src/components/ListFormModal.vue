@@ -27,6 +27,9 @@
             <option value="public">Публичный</option>
           </select>
         </div>
+
+        <!-- (Задача 1.3) Заменяем старые поля на новый компонент -->
+        <ThemeSelector v-model="form.theme_name" />
         <div class="form-actions">
           <button type="button" class="secondary" @click="$emit('close')">Отмена</button>
           <button type="submit">Сохранить</button>
@@ -38,6 +41,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+// Импортируем новый компонент
+import ThemeSelector from './ThemeSelector.vue';
 
 const props = defineProps({
   listToEdit: {
@@ -51,7 +56,8 @@ const form = ref({
   title: '',
   description: '',
   list_type: 'wishlist',
-  privacy_level: 'private'
+  privacy_level: 'private',
+  theme_name: 'default' // Новое поле
 });
 
 const formTitle = computed(() => props.listToEdit ? 'Редактировать список' : 'Создать новый список');

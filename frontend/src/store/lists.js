@@ -38,6 +38,23 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
+  // Новая функция для получения публичного списка
+  async function fetchPublicListByKey(publicKey) {
+    isLoading.value = true;
+    error.value = null;
+    currentList.value = null; // Сбрасываем текущий список
+    try {
+      // Используем новый публичный эндпоинт без заголовков аутентификации
+      const response = await apiClient.get(`/public/lists/${publicKey}`);
+      currentList.value = response.data;
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось загрузить публичный список.';
+      console.error(e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   async function addList(listData) {
     error.value = null;
     try {
@@ -131,6 +148,7 @@ export const useListsStore = defineStore('lists', () => {
     error, 
     fetchLists, 
     fetchListById,
+    fetchPublicListByKey, // Экспортируем новую функцию
     addList, 
     updateList, 
     deleteList,

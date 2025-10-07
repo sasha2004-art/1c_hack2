@@ -1,3 +1,4 @@
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -113,3 +114,82 @@ def test_update_list_not_owner(client: TestClient):
         f"/lists/{list_id}", headers=other_headers, json={"title": "Attempted update"}
     )
     assert update_response.status_code == 403 # Forbidden
+
+def test_create_list_with_theme(client: TestClient):
+    """Тест: создание списка с указанием темы."""
+    headers = get_user_auth_headers(client)
+    response = client.post(
+        "/lists/",
+        headers=headers,
+        json={
+            "title": "My Themed List",
+            "theme_name": "lavender"  # Используем ID темы
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["title"] == "My Themed List"
+    assert data["theme_name"] == "lavender"
+
+def test_update_list_theme(client: TestClient):
+    """Тест: обновление темы существующего списка."""
+    headers = get_user_auth_headers(client)
+    # Создаем список с темой по умолчанию
+    create_response = client.post(
+        "/lists/",
+        headers=headers,
+        json={"title": "List to re-theme"},
+    )
+    list_id = create_response.json()["id"]
+    assert create_response.json()["theme_name"] == "default"
+
+    # Обновляем тему
+    update_response = client.put(
+        f"/lists/{list_id}",
+        headers=headers,
+        json={"theme_name": "coffee"},
+    )
+    assert update_response.status_code == 200
+    data = update_response.json()
+    assert data["theme_name"] == "coffee"
+
+def test_read_public_list_success(client: TestClient):
+    """Тест: успешное получение публичного списка по ключу."""
+    headers = get_user_auth_headers(client)
+    # Создаем список и делаем его публичным
+    create_response = client.post(
+        "/lists/",
+        headers=headers,
+        json={"title": "Public List", "privacy_level": "public"},
+    )
+    public_key = create_response.json()["public_url_key"]
+
+    # Запрашиваем его без аутентификации
+    response = client.get(f"/public/lists/{public_key}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Public List"
+    # Убеждаемся, что в ответе нет приватной информации
+    assert "owner_id" not in data
+
+def test_read_public_list_forbidden(client: TestClient):
+    """Тест: попытка получения приватного списка по публичной ссылке (ошибка 403)."""
+    headers = get_user_auth_headers(client)
+    # Создаем приватный список (по умолчанию)
+    create_response = client.post(
+        "/lists/",
+        headers=headers,
+        json={"title": "Private List"},
+    )
+    public_key = create_response.json()["public_url_key"]
+
+    # Пытаемся получить доступ
+    response = client.get(f"/public/lists/{public_key}")
+    assert response.status_code == 403
+    assert response.json() == {"detail": "This list is not public"}
+
+def test_read_public_list_not_found(client: TestClient):
+    """Тест: попытка получения списка по несуществующему ключу (ошибка 404)."""
+    non_existent_key = uuid.uuid4()
+    response = client.get(f"/public/lists/{non_existent_key}")
+    assert response.status_code == 404

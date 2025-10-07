@@ -1,11 +1,11 @@
 <template>
-  <div id="app-container">
-    <header v-if="authStore.token">
-      <nav>
-        <router-link to="/">Главная</router-link>
-        <div class="user-info">
-          <span>{{ authStore.user?.email }}</span>
-          <button @click="handleLogout">Выйти</button>
+  <div id="app-wrapper">
+    <header class="app-header" v-if="authStore.token">
+      <nav class="nav-container">
+        <router-link to="/" class="nav-logo">Plotix</router-link>
+        <div class="nav-user-info">
+          <span v-if="authStore.user">{{ authStore.user.email }}</span>
+          <button @click="authStore.logout()" class="btn btn-secondary">Выйти</button>
         </div>
       </nav>
     </header>
@@ -16,95 +16,84 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useAuthStore } from './store/auth';
+import { useListsStore } from './store/lists';
+import { themes } from './themes.js';
 
 const authStore = useAuthStore();
+const listsStore = useListsStore();
+
+// --- ЛОГИКА ПРИМЕНЕНИЯ ТЕМЫ ---
+// Эта функция применяет стили из объекта темы к корневому элементу <html>
+const applyTheme = (themeName) => {
+  const theme = themes[themeName] || themes.default; // Если темы нет, ставим по умолчанию
+  if (theme) {
+    for (const [key, value] of Object.entries(theme.styles)) {
+      document.documentElement.style.setProperty(key, value);
+    }
+  }
+};
+
+// Следим за изменением текущего списка в хранилище (Pinia).
+// Когда пользователь переходит на страницу списка, эта функция применит его тему.
+watch(() => listsStore.currentList, (newList) => {
+  if (newList && newList.theme_name) {
+    applyTheme(newList.theme_name);
+  } else {
+    // Если мы не на странице списка (например, на главной), применяем тему по умолчанию.
+    applyTheme('default');
+  }
+}, { deep: true });
 
 onMounted(() => {
-  // При загрузке приложения проверяем, есть ли токен, и загружаем данные пользователя
-  if (authStore.token) {
+  // При первоначальной загрузке приложения, если есть токен, получаем данные пользователя
+  if (authStore.token && !authStore.user) {
     authStore.fetchUser();
   }
+  // Применяем тему по умолчанию при старте
+  applyTheme('default');
 });
 
-const handleLogout = () => {
-  authStore.logout();
-};
 </script>
 
-<style>
-/* Стили для всего приложения */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  margin: 0;
-  background-color: #f0f2f5;
-  color: #333;
-}
-
-#app-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-header {
+<style scoped>
+.app-header {
   background-color: #fff;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid #ddd;
-  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 0 2rem;
+  border-bottom: 1px solid var(--border-color, #dee2e6);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-nav {
+.nav-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 60px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-nav a {
+.nav-logo {
+  font-size: 1.5rem;
   font-weight: bold;
-  color: #2c3e50;
-  text-decoration: none;
+  color: var(--text-color, #333);
 }
 
-nav a.router-link-exact-active {
-  color: #42b983;
-}
-
-.user-info {
+.nav-user-info {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-button {
-    background-color: #42b983;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
+.nav-user-info span {
+  font-weight: 500;
 }
 
-button:hover {
-    background-color: #36a46e;
+.nav-user-info .btn {
+  padding: 0.5rem 1rem;
 }
-
-button.secondary {
-    background-color: #f0f0f0;
-    color: #333;
-    border: 1px solid #ccc;
-}
-button.secondary:hover {
-    background-color: #e0e0e0;
-}
-
-button.danger {
-    background-color: #e74c3c;
-}
-button.danger:hover {
-    background-color: #c0392b;
-}
-
 </style>

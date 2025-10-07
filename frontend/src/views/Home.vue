@@ -1,18 +1,14 @@
 <template>
-  <div class="home-dashboard">
-    <div class="dashboard-header">
+  <div class="home-container">
+    <header class="home-header">
       <h1>Мои списки</h1>
-      <button @click="openCreateModal">Создать список</button>
-    </div>
+      <button class="btn btn-primary" @click="openCreateModal">Создать список</button>
+    </header>
 
-    <div v-if="listsStore.isLoading" class="loader">Загрузка...</div>
+    <div v-if="listsStore.isLoading">Загрузка списков...</div>
     <div v-else-if="listsStore.error" class="error-message">{{ listsStore.error }}</div>
     
-    <div v-else-if="listsStore.lists.length === 0" class="no-lists">
-        <p>У вас пока нет списков. Нажмите "Создать список", чтобы добавить первый!</p>
-    </div>
-
-    <div v-else class="lists-grid">
+    <div v-else-if="listsStore.lists.length > 0" class="lists-grid">
       <ListCard 
         v-for="list in listsStore.lists" 
         :key="list.id" 
@@ -20,6 +16,9 @@
         @edit="openListForEdit"
         @delete="confirmDelete"
       />
+    </div>
+    <div v-else class="no-lists-message">
+      <p>У вас пока нет ни одного списка. Начните с создания нового!</p>
     </div>
 
     <!-- Модальное окно для создания/редактирования -->
@@ -82,23 +81,55 @@ const confirmDelete = (listId) => {
 </script>
 
 <style scoped>
-.home-dashboard {
-  width: 100%;
+/* Используем переменные из темы по умолчанию, которые будут унаследованы от App.vue или body */
+.home-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
 }
-.dashboard-header {
+
+.home-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #dee2e6); /* Добавляем fallback */
 }
+
+.home-header h1 {
+  font-size: 2.5rem;
+  color: var(--text-color, #333);
+}
+
 .lists-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
 }
-.no-lists, .error-message, .loader {
-    text-align: center;
-    margin-top: 4rem;
-    color: #888;
+
+.no-lists-message {
+  text-align: center;
+  padding: 3rem;
+  background-color: var(--card-bg-color, #fff);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #dee2e6);
+}
+
+/* Стили для кнопок, которые мы определили ранее */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn:hover {
+  opacity: 0.85;
+}
+.btn-primary {
+  background-color: var(--primary-color, #007bff);
+  color: var(--primary-text-color, #fff);
 }
 </style>

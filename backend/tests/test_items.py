@@ -61,15 +61,17 @@ def test_update_item(client: TestClient):
     create_response = client.post(f"/lists/{list_id}/items", headers=headers, json={"title": "Item to update"})
     item_id = create_response.json()["id"]
 
+    # ИЗМЕНЕНИЕ: Убрали поле 'details' из запроса на обновление
     update_response = client.put(
         f"/items/{item_id}",
         headers=headers,
-        json={"title": "Updated Item Title", "details": "<p>Updated details</p>"},
+        json={"title": "Updated Item Title", "description": "Updated description text"},
     )
     assert update_response.status_code == 200
     data = update_response.json()
     assert data["title"] == "Updated Item Title"
-    assert data["details"] == "<p>Updated details</p>"
+    # ИЗМЕНЕНИЕ: Проверяем обновленное описание вместо деталей
+    assert data["description"] == "Updated description text"
     assert data["id"] == item_id
 
 def test_delete_item(client: TestClient):

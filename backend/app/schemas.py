@@ -1,33 +1,29 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
-from .models import ListType, PrivacyLevel
+from uuid import UUID # Импортируем UUID
+from .models import ListType, PrivacyLevel, ThemeName # Импортируем новый Enum
 
-# --- Схемы для пользователя ---
+# --- Схемы для пользователя --- (без изменений)
 
 class UserBase(BaseModel):
-    """Базовая схема для пользователя с общими полями."""
     email: EmailStr
 
 class UserCreate(UserBase):
-    """Схема для создания нового пользователя. Требует пароль."""
     password: str
 
 class UserRead(UserBase):
-    """Схема для чтения (возврата) данных о пользователе из API."""
     id: int
     is_active: bool
-
     class Config:
-        # Разрешает Pydantic читать данные из атрибутов объекта SQLAlchemy
         from_attributes = True
 
-# --- Схемы для элементов списка ---
+# --- Схемы для элементов списка --- (ИЗМЕНЕНЫ)
 
 class ItemBase(BaseModel):
     title: str
     description: Optional[str] = None
-    details: Optional[str] = None
+    # Поле details удалено
 
 class ItemCreate(ItemBase):
     pass
@@ -35,14 +31,13 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    details: Optional[str] = None
+    # Поле details удалено
 
 class ItemRead(ItemBase):
     id: int
     list_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
     class Config:
         from_attributes = True
         
@@ -53,6 +48,8 @@ class ListBase(BaseModel):
     description: Optional[str] = None
     list_type: ListType = ListType.WISHLIST
     privacy_level: PrivacyLevel = PrivacyLevel.PRIVATE
+    # Заменяем старые поля на новое
+    theme_name: ThemeName = ThemeName.DEFAULT
 
 class ListCreate(ListBase):
     pass
@@ -62,14 +59,22 @@ class ListUpdate(BaseModel):
     description: Optional[str] = None
     list_type: Optional[ListType] = None
     privacy_level: Optional[PrivacyLevel] = None
+    # Добавляем новое поле для обновления
+    theme_name: Optional[ThemeName] = None
 
 class ListRead(ListBase):
     id: int
     owner_id: int
+    public_url_key: UUID # Добавляем публичный ключ
     created_at: datetime
     updated_at: Optional[datetime] = None
-    # Добавляем элементы в схему для чтения списка
     items: list[ItemRead] = []
+    class Config:
+        from_attributes = True
 
+# Новая схема для публичного отображения
+class ListPublicRead(ListBase):
+    id: int
+    items: list[ItemRead] = []
     class Config:
         from_attributes = True

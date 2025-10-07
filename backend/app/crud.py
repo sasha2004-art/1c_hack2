@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List as TypingList, Optional
+from uuid import UUID # Импортируем UUID
 from . import models, schemas, security
 
 # --- CRUD для Пользователей ---
@@ -20,6 +21,11 @@ def create_user(db: Session, user: schemas.UserCreate):
 def get_list(db: Session, list_id: int) -> Optional[models.List]:
     """Получить один список по его ID."""
     return db.query(models.List).filter(models.List.id == list_id).first()
+
+# Новая функция для получения списка по публичному ключу
+def get_list_by_public_key(db: Session, public_key: UUID) -> Optional[models.List]:
+    """Получить один список по его публичному UUID ключу."""
+    return db.query(models.List).filter(models.List.public_url_key == public_key).first()
 
 def get_lists_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> TypingList[models.List]:
     """Получить все списки конкретного пользователя."""

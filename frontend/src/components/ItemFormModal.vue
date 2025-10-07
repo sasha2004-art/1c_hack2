@@ -1,29 +1,28 @@
-<!-- --- НАЧАЛО ФАЙЛА: frontend/src/components/ItemFormModal.vue --- -->
 <template>
-  <div v-if="isVisible" class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" v-if="show">
     <div class="modal-content">
-      <h2>{{ formTitle }}</h2>
-      <form @submit.prevent="submitForm">
+      <h3 class="modal-title">{{ formTitle }}</h3>
+      <form @submit.prevent="handleSubmit">
         <div class="form-group">
           <label for="title">Название</label>
-          <input id="title" v-model="form.title" type="text" required>
+          <input id="title" type="text" v-model="formData.title" required>
         </div>
+        
+        <!-- Поле "Описание" теперь является основным полем для форматированного текста -->
         <div class="form-group">
-          <label for="description">Краткое описание</label>
-          <textarea id="description" v-model="form.description"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Детальное описание</label>
-          <!-- НОВЫЙ КОМПОНЕНТ: Редактор текста -->
-          <QuillEditor
+          <label>Описание</label>
+          <QuillEditor 
+            v-model:content="formData.description" 
+            contentType="html" 
             theme="snow"
-            :toolbar="toolbarOptions"
-            v-model:content="form.details"
-            contentType="html"
+            placeholder="Добавьте форматированный текст, ссылки и детали..."
           />
         </div>
-        <div class="form-actions">
-          <button type="button" @click="$emit('close')" class="btn-cancel">Отмена</button>
+
+        <!-- Блок с полем "Детали" полностью удален -->
+
+        <div class="modal-actions">
+          <button type="button" @click="close" class="btn-cancel">Отмена</button>
           <button type="submit" class="btn-save">Сохранить</button>
         </div>
       </form>
@@ -33,57 +32,52 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-// Импортируем редактор и его стили
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 const props = defineProps({
-  isVisible: Boolean,
-  itemToEdit: Object,
+  show: Boolean,
+  item: {
+    type: Object,
+    default: null
+  }
 });
 
 const emit = defineEmits(['close', 'save']);
 
-const form = ref({});
+// ИЗМЕНЕНИЕ: Убрали 'details' из состояния формы
+const formData = ref({
+  id: null,
+  title: '',
+  description: ''
+});
 
-// Настройки панели инструментов редактора
-const toolbarOptions = [
-  ['bold', 'italic', 'underline'], // полужирный, курсив, подчеркнутый
-  ['link'], // кнопка для вставки ссылки
-  [{ 'list': 'ordered'}, { 'list': 'bullet' }], // нумерованный и маркированный списки
-  ['clean'] // очистка форматирования
-];
+const formTitle = computed(() => props.item ? 'Редактировать элемент' : 'Добавить новый элемент');
 
-watch(() => props.isVisible, (newValue) => {
-  if (newValue) {
-    if (props.itemToEdit) {
-      // Режим редактирования: копируем данные, включая HTML-описание
-      form.value = { ...props.itemToEdit };
-    } else {
-      // Режим создания: обнуляем поля
-      form.value = { title: '', description: '', details: '' };
-    }
+// ИЗМЕНЕНИЕ: Убрали 'details' из логики заполнения формы
+watch(() => props.item, (newItem) => {
+  if (newItem) {
+    formData.value = { 
+      id: newItem.id,
+      title: newItem.title || '',
+      description: newItem.description || ''
+    };
+  } else {
+    formData.value = { id: null, title: '', description: '' };
   }
-});
+}, { immediate: true });
 
-const formTitle = computed(() => {
-  return props.itemToEdit ? 'Редактировать элемент' : 'Добавить новый элемент';
-});
+const handleSubmit = () => {
+  emit('save', formData.value);
+  close();
+};
 
-function submitForm() {
-  // Теперь не нужно парсить JSON, просто отправляем форму как есть
-  const payload = {
-    title: form.value.title,
-    description: form.value.description,
-    details: form.value.details,
-  };
-  
-  emit('save', payload);
-}
+const close = () => {
+  emit('close');
+};
 </script>
 
 <style scoped>
-/* Стили для модального окна */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -94,48 +88,80 @@ function submitForm() {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 100;
+  z-index: 1000;
 }
+
 .modal-content {
-  background: white;
+  background-color: #F5F5DC; /* Coffee theme background */
   padding: 2rem;
   border-radius: 8px;
   width: 90%;
-  max-width: 650px; /* Увеличим ширину для редактора */
+  max-width: 600px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
+
+.modal-title {
+  color: #8B4513; /* Coffee theme text */
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #D2B48C;
+  padding-bottom: 0.5rem;
+}
+
 .form-group {
   margin-bottom: 1.5rem;
 }
-label {
+
+.form-group label {
   display: block;
   margin-bottom: 0.5rem;
+  color: #8B4513;
+  font-weight: bold;
 }
-input, textarea {
+
+.form-group input[type="text"] {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
+  padding: 0.75rem;
+  border: 1px solid #D2B48C;
   border-radius: 4px;
+  background-color: #FFFDF6;
+  box-sizing: border-box;
 }
-.form-actions {
+
+.modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
-.btn-save { background-color: #42b983; color: white; }
-.btn-cancel { background-color: #6c757d; color: white; }
-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
 
-/* Стили для редактора Quill могут потребовать небольшой корректировки */
-.form-group .ql-toolbar {
+button {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+
+.btn-save {
+  background-color: #A0522D; /* Primary coffee color */
+}
+
+.btn-cancel {
+  background-color: #DEB887; /* Secondary coffee color */
+  color: #8B4513;
+}
+
+:deep(.ql-toolbar) {
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
+  border-color: #D2B48C !important;
 }
-.form-group .ql-container {
+:deep(.ql-container) {
   border-bottom-left-radius: 4px;
   border-bottom-right-radius: 4px;
-  min-height: 150px; /* Задаем минимальную высоту */
-  font-size: 1rem;
+  border-color: #D2B48C !important;
+  background-color: #FFFDF6;
+  min-height: 120px;
 }
 </style>
-<!-- --- КОНЕЦ ФАЙЛА: frontend/src/components/ItemFormModal.vue --- -->

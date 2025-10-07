@@ -24,6 +24,14 @@
             class="btn btn-unreserve">
             Снять бронь
           </button>
+          <!-- Новая кнопка "Добавить к себе" -->
+          <button
+            v-if="showCopyButton"
+            @click="copyItem"
+            class="btn btn-copy"
+          >
+            Добавить к себе
+          </button>
         </template>
         
         <!-- Здесь можно будет добавить кнопки для владельца (редактировать/удалить) -->
@@ -36,6 +44,7 @@
 import { computed } from 'vue';
 import { useAuthStore } from '@/store/auth';
 import { storeToRefs } from 'pinia';
+import { apiClient } from '../store/auth'; // Импортируем apiClient
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -45,7 +54,7 @@ const props = defineProps({
   isLoggedIn: { type: Boolean, default: false },
 });
 
-defineEmits(['reserve', 'unreserve']);
+const emit = defineEmits(['reserve', 'unreserve', 'itemCopied']); // Добавляем 'itemCopied'
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
@@ -67,6 +76,22 @@ const showUnreserveButton = computed(() => {
   // В идеале, нужно добавить reserver_id в ItemPublicRead
   return false; // Пока скрываем, т.к. нет данных, кто забронировал
 });
+
+// Новая вычисляемая пропертя для кнопки "Добавить к себе"
+const showCopyButton = computed(() => {
+  return props.isLoggedIn && !props.isOwner;
+});
+
+const copyItem = async () => {
+  try {
+    await apiClient.post(`/items/${props.item.id}/copy`);
+    emit('itemCopied'); // Отправляем событие о том, что элемент скопирован
+    alert('Элемент успешно скопирован в ваш список!');
+  } catch (error) {
+    console.error('Ошибка при копировании элемента:', error);
+    alert('Не удалось скопировать элемент.');
+  }
+};
 
 </script>
 
@@ -149,5 +174,9 @@ const showUnreserveButton = computed(() => {
 .btn-unreserve {
   background-color: var(--edit-color);
   color: var(--edit-text-color);
+}
+.btn-copy {
+  background-color: var(--secondary-color); /* Или любой другой цвет */
+  color: var(--secondary-text-color);
 }
 </style>

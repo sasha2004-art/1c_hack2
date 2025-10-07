@@ -1,226 +1,152 @@
-<!-- frontend/src/views/ListView.vue -->
 <template>
-  <div class="list-view-container" v-if="currentList">
-    <div class="list-header">
-      <div class="list-info">
-        <h1>{{ currentList.title }}</h1>
-        <p v-if="currentList.description">{{ currentList.description }}</p>
+  <div class="list-view-container">
+    <div v-if="listsStore.isLoading" class="loading">Загрузка...</div>
+    <div v-else-if="listsStore.error" class="error">{{ listsStore.error }}</div>
+    <div v-else-if="listsStore.currentList" class="list-details">
+      <div class="list-header">
+        <h1>{{ listsStore.currentList.title }}</h1>
+        <p>{{ listsStore.currentList.description }}</p>
       </div>
-      <!-- --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- -->
-      <div class="list-actions">
-        <button @click="openItemModal(null)">Добавить элемент</button>
-        <!-- Кнопка заменена на иконку с подсказкой -->
-        <button @click="openSettingsModal" class="icon-button settings-button" title="Настройки списка">
-          ⚙️
-        </button>
+
+      <!-- Показываем кнопку добавления только владельцу -->
+      <div class="actions" v-if="isOwner">
+        <button @click="openAddItemModal" class="btn-primary">Добавить желание</button>
       </div>
-    </div>
-    
-    <div v-if="!currentList.items || currentList.items.length === 0" class="no-items-message">
-      В этом списке пока нет элементов.
-    </div>
 
-    <div class="items-grid" v-else>
-      <ItemCard
-        v-for="item in currentList.items"
-        :key="item.id"
-        :item="item"
-        :list-owner-id="currentList.owner_id"
-        :is-public="false"
-        @edit="openItemModal(item)"
-        @delete="handleDeleteItem(item.id)"
-        @open-lightbox="openLightbox"
-        @copy-item="openCopyModal"
-        :id="`item-${item.id}`"
-      />
-    </div>
-
-    <ItemFormModal 
-      v-if="isItemModalVisible" 
-      :initial-item="editingItem"
-      :list-id="currentList.id"
-      @close="closeItemModal" 
-    />
-
-    <ListFormModal 
-      v-if="isSettingsModalVisible" 
-      :initial-list="currentList"
-      @close="closeSettingsModal"
-      @list-updated="listsStore.fetchListById(currentList.value.id)"
-    />
-
-    <Lightbox 
-      :visible="isLightboxVisible" 
-      :image-url="selectedImageUrl" 
-      @close="isLightboxVisible = false" 
-    />
-
-  </div>
-  <div v-else-if="isLoading" class="loading-spinner">Загрузка списка...</div>
-  <div v-else class="error-message">{{ error }}</div>
-
-  <!-- Этап 10: Модалка выбора списка для копирования -->
-  <div v-if="isCopyModalVisible" class="modal-overlay" @click.self="closeCopyModal">
-    <div class="modal-content">
-      <h3>Скопировать желание в...</h3>
-      <p v-if="copyError" class="error-message">{{ copyError }}</p>
-      <select v-model="selectedListId" class="form-select">
-        <option disabled value="">Выберите ваш список</option>
-        <option v-for="l in listsStore.lists" :key="l.id" :value="l.id">{{ l.title }}</option>
-      </select>
-      <div class="modal-actions">
-        <button @click="closeCopyModal" class="btn btn-secondary">Отмена</button>
-        <button @click="handleCopyConfirm" class="btn btn-primary" :disabled="!selectedListId">Подтвердить</button>
+      <div v-if="listsStore.currentList.items.length > 0" class="items-grid">
+        <ItemCard
+          v-for="item in listsStore.currentList.items"
+          :key="item.id"
+          :item="item"
+          :is-owner="isOwner"
+          @edit-item="openEditItemModal(item)"
+        />
+      </div>
+      <div v-else class="empty-state">
+        <p>В этом списке пока нет желаний. Пора добавить первое!</p>
       </div>
     </div>
+    <div v-else>
+      <p>Список не найден.</p>
+    </div>
+
+    <ItemFormModal
+      :is-open="isItemModalOpen"
+      :list-id="parseInt(listId)"
+      :item-to-edit="currentItemForEdit"
+      @close="handleItemFormClose"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useListsStore } from '@/store/lists';
-import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/store/auth'; // 1. Импортируем auth store
 import ItemCard from '@/components/ItemCard.vue';
 import ItemFormModal from '@/components/ItemFormModal.vue';
-import ListFormModal from '@/components/ListFormModal.vue';
-import Lightbox from '@/components/Lightbox.vue';
-
-const props = defineProps({
-  id: {
-    type: String,
-    required: true,
-  },
-});
+import { themes } from '@/themes.js';
 
 const route = useRoute();
 const listsStore = useListsStore();
-const { currentList, isLoading, error } = storeToRefs(listsStore);
+const authStore = useAuthStore(); // 2. Получаем экземпляр auth store
 
-const isItemModalVisible = ref(false);
-const isSettingsModalVisible = ref(false);
-const editingItem = ref(null);
-const isLightboxVisible = ref(false);
-const selectedImageUrl = ref('');
+const listId = route.params.id;
 
-const openItemModal = (item) => {
-  editingItem.value = item;
-  isItemModalVisible.value = true;
-};
+const isItemModalOpen = ref(false);
+const currentItemForEdit = ref(null);
 
-const closeItemModal = () => {
-  isItemModalVisible.value = false;
-  editingItem.value = null;
-};
+// 3. Создаем вычисляемое свойство для определения владельца
+const isOwner = computed(() => {
+  if (!authStore.user || !listsStore.currentList) return false;
+  return authStore.user.id === listsStore.currentList.owner_id;
+});
 
-const openSettingsModal = () => {
-    isSettingsModalVisible.value = true;
-};
 
-const closeSettingsModal = () => {
-    isSettingsModalVisible.value = false;
-    if (currentList.value) {
-        listsStore.fetchListById(currentList.value.id);
-    }
-};
+const currentTheme = computed(() => {
+  const themeName = listsStore.currentList?.theme_name || 'default';
+  return themes[themeName] || themes.default;
+});
 
-const handleDeleteItem = async (itemId) => {
-  if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
-    await listsStore.deleteItem(itemId);
+const applyTheme = (theme) => {
+  const root = document.documentElement;
+  for (const [key, value] of Object.entries(theme.styles)) {
+    root.style.setProperty(key, value);
   }
 };
 
-const openLightbox = (imageUrl) => {
-  const backendUrl = 'http://localhost:8000';
-  selectedImageUrl.value = `${backendUrl}${imageUrl}`;
-  isLightboxVisible.value = true;
+const openAddItemModal = () => {
+  currentItemForEdit.value = null;
+  isItemModalOpen.value = true;
 };
 
-const scrollToAndHighlightItem = async (hash) => {
-    if (!hash || !hash.startsWith('#item-')) return;
-    
-    await nextTick();
-    
-    const itemId = hash.substring(1);
-    const element = document.getElementById(itemId);
+const openEditItemModal = (item) => {
+  currentItemForEdit.value = item;
+  isItemModalOpen.value = true;
+};
 
-    if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.classList.add('highlight');
-        
-        setTimeout(() => {
-            element.classList.remove('highlight');
-        }, 3000);
-    }
+const handleItemFormClose = () => {
+  isItemModalOpen.value = false;
+  currentItemForEdit.value = null;
 };
 
 onMounted(async () => {
-  await listsStore.fetchListById(Number(props.id));
-  scrollToAndHighlightItem(route.hash);
+  await listsStore.fetchListById(listId);
+  if (listsStore.currentList) {
+    applyTheme(currentTheme.value);
+  }
 });
 
-watch(() => route.hash, (newHash) => {
-    scrollToAndHighlightItem(newHash);
+// Сброс стилей при уходе со страницы
+import { onBeforeUnmount } from 'vue';
+onBeforeUnmount(() => {
+  applyTheme(themes.default);
 });
 </script>
 
 <style scoped>
 .list-view-container {
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
-}
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-.list-info h1 {
-  margin: 0;
   color: var(--text-color);
 }
-.list-info p {
-  margin: 0.5rem 0 0;
+
+.list-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.list-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.list-header p {
+  font-size: 1.2rem;
   color: var(--text-color);
   opacity: 0.8;
 }
-.list-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center; /* Выравниваем иконку и кнопку */
-}
-/* Стили для обычной кнопки */
-.list-actions button:not(.icon-button) {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    background-color: var(--primary-color);
-    color: var(--primary-text-color);
+
+.actions {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
-/* --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Стили для кнопки-иконки --- */
-.icon-button {
-  background: none;
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
   border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
   cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 1rem;
+  transition: background-color 0.3s;
 }
-.settings-button {
-  font-size: 1.75rem; /* Размер иконки */
-  color: var(--text-color);
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-.settings-button:hover {
-  opacity: 1;
+
+.btn-primary:hover {
+  opacity: 0.9;
 }
 
 .items-grid {
@@ -228,23 +154,17 @@ watch(() => route.hash, (newHash) => {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
-.no-items-message {
+
+.empty-state {
   text-align: center;
   padding: 3rem;
-  font-size: 1.2rem;
-  color: #888;
-  background-color: var(--card-bg-color);
+  border: 2px dashed var(--border-color);
   border-radius: 8px;
+  background-color: var(--card-bg-color);
 }
-.loading-spinner, .error-message {
+.loading, .error {
   text-align: center;
+  font-size: 1.2rem;
   padding: 2rem;
-  font-size: 1.5rem;
-}
-
-.items-grid :deep(.highlight) {
-  transition: box-shadow 0.5s ease-in-out, border-color 0.5s ease-in-out;
-  box-shadow: 0 0 15px 5px var(--edit-color, gold);
-  border-color: var(--edit-color, gold) !important;
 }
 </style>

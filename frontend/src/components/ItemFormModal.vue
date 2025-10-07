@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useListsStore } from '@/store/lists';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
+import { apiClient } from '@/store/auth'; // <-- Импортируем apiClient
 
 const props = defineProps({
   isOpen: {
@@ -25,6 +26,12 @@ const listsStore = useListsStore();
 const title = ref('');
 const description = ref('');
 const errorMessage = ref('');
+
+// --- НОВЫЕ ref ДЛЯ ПОДБОРА КАРТИНОК ---
+const imageSuggestions = ref([]);
+const isSuggestionsLoading = ref(false);
+let debounceTimer = null;
+const editorRef = ref(null); // Ref для доступа к Quill API
 
 const quillOptions = {
   theme: 'snow',
@@ -68,7 +75,43 @@ watch(() => props.itemToEdit, (newItem) => {
     title.value = '';
     description.value = '';
   }
+  imageSuggestions.value = []; // Очищаем предложения при открытии
 });
+
+// --- НОВЫЙ watch ДЛЯ ПОИСКА КАРТИНОК ---
+watch(title, (newTitle) => {
+  clearTimeout(debounceTimer);
+  if (newTitle.trim().length < 3) {
+    imageSuggestions.value = [];
+    return;
+  }
+  isSuggestionsLoading.value = true;
+  debounceTimer = setTimeout(async () => {
+    try {
+      const response = await apiClient.get(`/utils/image-suggestions?query=${newTitle}`);
+      imageSuggestions.value = response.data;
+    } catch (error) {
+      console.error("Failed to fetch image suggestions:", error);
+      imageSuggestions.value = [];
+    } finally {
+      isSuggestionsLoading.value = false;
+    }
+  }, 500); // Задержка в 500 мс
+});
+
+// --- НОВАЯ ФУНКЦИЯ ДЛЯ ВЫБОРА КАРТИНКИ ---
+const selectImage = (imageUrl) => {
+    // Используем наш прокси-сервер для вставки картинки, чтобы избежать проблем с CORS у пользователя
+    const proxyUrl = `http://localhost:8000/utils/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+    const quill = editorRef.value?.getQuill();
+    if (quill) {
+        const range = quill.getSelection(true);
+        // Вставляем картинку и переводим курсор на новую строку после нее
+        quill.insertEmbed(range.index, 'image', proxyUrl, 'user');
+        quill.setSelection(range.index + 1);
+    }
+    imageSuggestions.value = []; // Скрываем предложения после выбора
+};
 
 
 const closeModal = () => {
@@ -100,7 +143,6 @@ const handleSubmit = async () => {
 };
 </script>
 
-<!-- Вот недостающий блок <template> -->
 <template>
   <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
@@ -118,10 +160,26 @@ const handleSubmit = async () => {
             required
           />
         </div>
+
+        <!-- --- НОВЫЙ БЛОК ДЛЯ ПРЕДЛОЖЕНИЙ --- -->
+        <div class="suggestions-container" v-if="isSuggestionsLoading || imageSuggestions.length > 0">
+            <div v-if="isSuggestionsLoading" class="suggestions-loader">Ищем картинки...</div>
+            <div v-else class="image-suggestions-grid">
+                <img 
+                    v-for="suggestion in imageSuggestions" 
+                    :key="suggestion.id" 
+                    :src="suggestion.urls.small" 
+                    :alt="suggestion.description"
+                    @click="selectImage(suggestion.urls.regular)"
+                    class="suggestion-image"
+                />
+            </div>
+        </div>
         
         <div class="form-group">
           <label for="item-description">Описание</label>
           <QuillEditor
+            ref="editorRef"
             v-model:content="description"
             contentType="html"
             :options="quillOptions"
@@ -167,18 +225,16 @@ const handleSubmit = async () => {
   max-width: 600px;
   position: relative;
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  /* --- ДОБАВЛЕННЫЕ ИЗМЕНЕНИЯ --- */
-  max-height: 95vh; /* Ограничиваем высоту до 95% высоты экрана */
-  overflow-y: auto; /* Добавляем вертикальную прокрутку, если контент не помещается */
-  display: flex;      /* Используем flexbox для лучшего управления внутренним пространством */
+  max-height: 95vh;
+  overflow-y: auto;
+  display: flex;
   flex-direction: column;
 }
 
-/* --- ДОБАВЛЕННЫЙ СТИЛЬ ДЛЯ ФОРМЫ --- */
 .modal-content form {
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Позволяет форме занять все доступное пространство */
+    flex-grow: 1;
 }
 
 .modal-close {
@@ -278,5 +334,36 @@ h2 {
 .form-group :deep(.ql-editor) {
   background-color: #f9f9f9;
   color: #333;
+}
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ ПРЕДЛОЖЕНИЙ --- */
+.suggestions-container {
+    margin-bottom: 1rem;
+    background-color: #f9f9f9;
+    border: 1px solid #D8BFD8;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+.suggestions-loader {
+    text-align: center;
+    color: #888;
+    padding: 1rem;
+}
+.image-suggestions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+.suggestion-image {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.suggestion-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 </style>

@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+# --- ДОБАВИТЬ ИМПОРТЫ ---
+from fastapi import BackgroundTasks
+from ..ws_manager import send_notification_ws
 
 from .. import crud, schemas, models
 from ..dependencies import get_current_active_user
@@ -14,6 +17,7 @@ router = APIRouter(
 @router.post("/items/{item_id}/like", status_code=status.HTTP_204_NO_CONTENT)
 def like_item(
     item_id: int,
+    background_tasks: BackgroundTasks, # <-- Внедряем
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -26,7 +30,12 @@ def like_item(
     if existing_like:
         raise HTTPException(status_code=409, detail="Вы уже лайкнули этот элемент")
 
-    crud.add_like(db=db, item=db_item, user=current_user)
+    # ИЗМЕНЕНИЕ: add_like теперь возвращает объект
+    db_like = crud.add_like(db=db, item=db_item, user=current_user)
+    if db_like.item.list.owner_id != current_user.id:
+        # Находим уведомление
+        notification = db_like.item.list.owner.notifications[-1]
+        background_tasks.add_task(send_notification_ws, notification)
     return
 
 @router.delete("/items/{item_id}/like", status_code=status.HTTP_204_NO_CONTENT)
@@ -53,6 +62,7 @@ def unlike_item(
 def create_comment_for_item(
     item_id: int,
     comment_data: schemas.CommentCreate,
+    background_tasks: BackgroundTasks, # <-- Внедряем
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -61,7 +71,12 @@ def create_comment_for_item(
     if not db_item:
         raise HTTPException(status_code=404, detail="Элемент не найден")
 
-    return crud.create_comment(db=db, comment_data=comment_data, item_id=item_id, user_id=current_user.id)
+    # ИЗМЕНЕНИЕ: create_comment теперь возвращает объект
+    db_comment = crud.create_comment(db=db, comment_data=comment_data, item_id=item_id, user_id=current_user.id)
+    if db_comment.item.list.owner_id != current_user.id:
+        notification = db_comment.item.list.owner.notifications[-1]
+        background_tasks.add_task(send_notification_ws, notification)
+    return db_comment
 
 
 @router.delete("/comments/{comment_id}", response_model=schemas.CommentRead)

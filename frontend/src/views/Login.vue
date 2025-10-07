@@ -21,12 +21,18 @@
 <script setup>
 import { ref } from 'vue'
 import { useAuthStore } from '../store/auth'
+// --- ДОБАВИТЬ ИМПОРТ ---
+import { useNotificationStore } from '../store/notifications'
 
 const email = ref('')
 const password = ref('')
 const authStore = useAuthStore()
+// --- ПОЛУЧИТЬ ЭКЗЕМПЛЯР СТОРА УВЕДОМЛЕНИЙ ---
+const notificationStore = useNotificationStore()
 
 const handleSubmit = () => {
+  // --- ВЫЗВАТЬ ФУНКЦИЮ ПЕРЕД ЛОГИНОМ ---
+  notificationStore.unlockAudioContext();
   authStore.login({ email: email.value, password: password.value })
 }
 </script>

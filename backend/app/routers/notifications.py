@@ -7,6 +7,10 @@ from typing import List # <--- Убедитесь, что List импортир�
 from .. import crud, schemas, models
 from ..dependencies import get_current_active_user
 from ..db.base import get_db
+# --- ДОБАВИТЬ ИМПОРТЫ ---
+from fastapi import WebSocket, WebSocketDisconnect
+from ..ws_manager import manager # Импортируем наш менеджер
+from ..security import decode_token # Для декодирования токена из query
 
 router = APIRouter(
     prefix="/notifications",
@@ -57,3 +61,33 @@ def mark_as_read(
     if not updated_notification:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found or already read")
     return updated_notification
+
+# --- НОВЫЙ WEBSOCKET ЭНДПОИНТ ---
+@router.websocket("/ws")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str, # Получаем токен как query-параметр
+    db: Session = Depends(get_db)
+):
+    """
+    Эндпоинт для WebSocket соединений.
+    Аутентификация происходит по токену, переданному в query-параметрах.
+    """
+    payload = decode_token(token)
+    if not payload or not payload.get("sub"):
+        await websocket.close(code=1008)
+        return
+    
+    user = crud.get_user_by_email(db, email=payload.get("sub"))
+    if not user:
+        await websocket.close(code=1008)
+        return
+
+    await manager.connect(websocket, user.id)
+    try:
+        while True:
+            # Просто держим соединение открытым, слушая клиента
+            # В будущем здесь можно обрабатывать входящие сообщения от клиента
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(user.id)

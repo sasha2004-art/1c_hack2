@@ -103,6 +103,8 @@ const vClickOutside = {
   },
 };
 
+// УДАЛИТЬ ЭТИ ДВА ХУКА ПОЛНОСТЬЮ
+/*
 onMounted(() => {
   notificationStore.startPolling();
 });
@@ -110,6 +112,7 @@ onMounted(() => {
 onUnmounted(() => {
   notificationStore.stopPolling();
 });
+*/
 </script>
 
 <style scoped>

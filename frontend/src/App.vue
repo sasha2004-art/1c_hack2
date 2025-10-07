@@ -27,6 +27,8 @@ import { themes } from './themes.js';
 // Импортируем NotificationBell и useNotificationStore
 import NotificationBell from './components/NotificationBell.vue';
 import { useNotificationStore } from './store/notifications';
+// --- ИМПОРТИРУЕМ СЕРВИС ---
+import { websocketService } from '@/services/websocket.js';
 
 const authStore = useAuthStore();
 const listsStore = useListsStore();
@@ -67,10 +69,11 @@ watch(() => router.currentRoute.value.name, (routeName) => {
 watch(() => authStore.token, (newToken) => {
   if (newToken) {
     // Если пользователь вошел, запускаем опрос
-    notificationStore.startPolling();
+    notificationStore.fetchNotifications(); // Загружаем начальные уведомления
+    websocketService.connect(); // Устанавливаем WebSocket соединение
   } else {
     // Если вышел - останавливаем
-    notificationStore.stopPolling();
+    websocketService.disconnect(); // Закрываем соединение
   }
 });
 
@@ -85,7 +88,8 @@ onMounted(() => {
   // (Новое) При монтировании App.vue, если пользователь авторизован,
   // запускаем опрос уведомлений
   if (authStore.token) {
-    notificationStore.startPolling();
+    notificationStore.fetchNotifications();
+    websocketService.connect();
   }
 });
 

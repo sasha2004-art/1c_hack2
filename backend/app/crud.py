@@ -65,15 +65,17 @@ def create_friend_request(db: Session, requester_id: int, addressee_id: int) -> 
     db.commit()
     db.refresh(db_request)
     
-    # (Новое) Создаем уведомление для получателя
+    # Создаем уведомление для получателя
     create_notification(
         db,
         recipient_id=addressee_id,
         sender_id=requester_id,
         type=models.NotificationType.FRIEND_REQUEST
     )
+    # Перезагружаем объект, чтобы подгрузить связь с уведомлением
+    db.refresh(db_request, attribute_names=['addressee'])
     
-    return db_request
+    return db_request # <-- Возвращаем объект Friendship
 
 def update_friendship_status(db: Session, db_friendship: models.Friendship, status: models.FriendshipStatus) -> models.Friendship:
     """Обновить статус заявки (принять/отклонить)."""
@@ -262,8 +264,8 @@ def add_like(db: Session, item: models.Item, user: models.User) -> models.Like:
     db_like = models.Like(item_id=item.id, user_id=user.id)
     db.add(db_like)
     db.commit()
+    db.refresh(db_like) # <-- Добавляем refresh
 
-    # (Новое) Создаем уведомление для владельца элемента, если это не он сам
     if item.list.owner_id != user.id:
         create_notification(
             db,
@@ -272,8 +274,9 @@ def add_like(db: Session, item: models.Item, user: models.User) -> models.Like:
             type=models.NotificationType.LIKE,
             related_item_id=item.id
         )
-
-    return db_like
+        db.refresh(db_like, attribute_names=['item']) # <-- Обновляем связи
+    
+    return db_like # <-- Возвращаем объект
 
 def remove_like(db: Session, db_like: models.Like):
     """Удалить лайк."""
@@ -298,13 +301,14 @@ def create_comment(db: Session, comment_data: schemas.CommentCreate, item_id: in
     item = get_item(db, item_id)
     # Создаем уведомление для владельца элемента, если это не он сам
     if item and item.list.owner_id != user_id:
-         create_notification(
+        create_notification(
             db,
             recipient_id=item.list.owner_id,
             sender_id=user_id,
             type=models.NotificationType.COMMENT,
             related_item_id=item.id
         )
+        db.refresh(db_comment, attribute_names=['item']) # <-- Обновляем связи
 
     return db_comment
 
@@ -317,7 +321,7 @@ def delete_comment(db: Session, db_comment: models.Comment):
 # --- (Новое) CRUD для Уведомлений ---
 
 def create_notification(db: Session, recipient_id: int, sender_id: int, type: models.NotificationType, related_item_id: Optional[int] = None):
-    """Создать новое уведомление."""
+    """Создать новое уведомление (без отправки WS)."""
     db_notification = models.Notification(
         recipient_id=recipient_id,
         sender_id=sender_id,

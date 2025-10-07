@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+# --- ДОБАВИТЬ ИМПОРТЫ ---
+from fastapi import BackgroundTasks
+from ..ws_manager import send_notification_ws
 
 from .. import crud, schemas, models
 from ..dependencies import get_current_active_user
@@ -45,6 +48,7 @@ def get_my_friends_and_requests(
 @router.post("/request/{addressee_id}", status_code=status.HTTP_201_CREATED)
 def send_friend_request(
     addressee_id: int,
+    background_tasks: BackgroundTasks, # <-- Внедряем зависимость
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -60,7 +64,15 @@ def send_friend_request(
     if existing_friendship:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A friendship or request already exists between you and this user.")
         
-    crud.create_friend_request(db, requester_id=current_user.id, addressee_id=addressee_id)
+    # ИЗМЕНЕНИЕ: create_friend_request теперь возвращает объект уведомления
+    friendship_request = crud.create_friend_request(db, requester_id=current_user.id, addressee_id=addressee_id)
+    
+    # Находим связанное уведомление
+    notification = friendship_request.addressee.notifications[-1] # Последнее уведомление получателя
+
+    # Добавляем задачу в фон
+    background_tasks.add_task(send_notification_ws, notification)
+    
     return {"message": "Friend request sent."}
 
 @router.post("/accept/{request_id}", status_code=status.HTTP_200_OK)

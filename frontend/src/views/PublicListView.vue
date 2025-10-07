@@ -10,48 +10,42 @@
       <div v-if="error" class="error-message">{{ error }}</div>
 
       <div class="items-grid" v-if="list.items && list.items.length > 0">
-        <div class="item-card" v-for="item in list.items" :key="item.id">
-          <img v-if="item.thumbnail_url" :src="`http://localhost:8000${item.thumbnail_url}`" alt="Item image" class="item-image"/>
-          <h3>{{ item.title }}</h3>
-          <p v-if="item.description" class="item-description" v-html="item.description"></p>
-          
-          <div class="card-footer">
-            <div class="interactions">
-              <span>❤️ {{ item.likes_count }}</span>
-              <span>💬 {{ item.comments.length }}</span>
-            </div>
-            
-            <!-- ====== БЛОК С ЛОГИКОЙ КНОПОК БРОНИРОВАНИЯ ====== -->
-            <div class="actions">
-              <!-- Кнопка "Забронировать" -->
-              <button 
-                v-if="canReserve(item)" 
-                @click="handleReserve(item.id)" 
-                class="btn btn-primary"
-              >
-                Забронировать
-              </button>
-
-              <!-- Индикатор, если забронировано кем-то другим -->
-              <span v-if="item.is_reserved && !isReservedByMe(item.id)" class="reserved-badge">
-                Уже забронировано
-              </span>
-
-              <!-- Кнопка "Снять бронь" -->
-              <button 
-                v-if="isReservedByMe(item.id)" 
-                @click="handleUnreserve(item.id)" 
-                class="btn btn-secondary"
-              >
-                Снять бронь
-              </button>
-            </div>
-            <!-- ====================================================== -->
-          </div>
-        </div>
+        <ItemCard
+          v-for="item in list.items"
+          :key="item.id"
+          :item="item"
+          :list-owner-id="list.owner.id"
+          :is-public="true"
+          @copy-item="openCopyModal"
+        />
       </div>
        <div v-else class="empty-list-message">
         В этом списке пока нет элементов.
+      </div>
+    </div>
+  </div>
+
+  <!-- Этап 10: Модалка выбора списка для копирования -->
+  <div v-if="isCopyModalVisible" class="modal-overlay" @click.self="closeCopyModal">
+    <div class="modal-content">
+      <h3>Скопировать желание в...</h3>
+      <p v-if="copyError" class="error-message">{{ copyError }}</p>
+
+      <div v-if="userLists.length > 0">
+        <select v-model="selectedListId" class="form-select">
+          <option disabled value="">Выберите ваш список</option>
+          <option v-for="l in userLists" :key="l.id" :value="l.id">{{ l.title }}</option>
+        </select>
+        <div class="modal-actions">
+          <button @click="closeCopyModal" class="btn btn-secondary">Отмена</button>
+          <button @click="handleCopyConfirm" class="btn btn-primary" :disabled="!selectedListId">Подтвердить</button>
+        </div>
+      </div>
+      <div v-else>
+        <p>У вас нет списков. Создайте список на главной странице.</p>
+        <div class="modal-actions">
+          <button @click="closeCopyModal" class="btn btn-secondary">Закрыть</button>
+        </div>
       </div>
     </div>
   </div>
@@ -63,6 +57,7 @@ import { useRoute } from 'vue-router';
 import { useListsStore } from '@/store/lists';
 import { useAuthStore } from '@/store/auth';
 import { themes } from '@/themes.js';
+import ItemCard from '@/components/ItemCard.vue';
 
 const route = useRoute();
 const listsStore = useListsStore();
@@ -77,6 +72,8 @@ onMounted(async () => {
     await authStore.fetchUser();
     // Загружаем бронирования текущего пользователя
     await listsStore.fetchUserReservations();
+    // Загружаем свои списки для модального окна копирования
+    await listsStore.fetchLists();
   }
   // Загружаем данные публичного списка
   await listsStore.fetchPublicListByKey(publicKey.value);
@@ -88,6 +85,7 @@ const isLoading = computed(() => listsStore.isLoading);
 const error = computed(() => listsStore.error);
 const currentUser = computed(() => authStore.user);
 const userReservations = computed(() => listsStore.userReservations);
+const userLists = computed(() => listsStore.lists);
 
 // Ключевая проверка: является ли текущий пользователь владельцем списка
 const isOwner = computed(() => {
@@ -126,6 +124,36 @@ const handleReserve = async (itemId) => {
     await listsStore.reserveItem(itemId, publicKey.value);
   } catch (e) {
     alert(e.message || 'Произошла ошибка при бронировании');
+  }
+};
+
+// --- Этап 10: состояние и методы модалки копирования ---
+const isCopyModalVisible = ref(false);
+const itemToCopyId = ref(null);
+const selectedListId = ref('');
+const copyError = ref('');
+
+const openCopyModal = (itemId) => {
+  itemToCopyId.value = itemId;
+  selectedListId.value = '';
+  copyError.value = '';
+  isCopyModalVisible.value = true;
+};
+
+const closeCopyModal = () => {
+  isCopyModalVisible.value = false;
+  itemToCopyId.value = null;
+  selectedListId.value = '';
+};
+
+const handleCopyConfirm = async () => {
+  if (!selectedListId.value) return;
+  try {
+    await listsStore.copyItem(itemToCopyId.value, Number(selectedListId.value));
+    alert('Желание успешно скопировано!');
+    closeCopyModal();
+  } catch (e) {
+    copyError.value = listsStore.error || 'Не удалось скопировать элемент';
   }
 };
 
@@ -232,5 +260,44 @@ const handleUnreserve = async (itemId) => {
   object-fit: cover;
   border-radius: 8px;
   margin-top: 10px;
+}
+
+/* Этап 10: стили модалки копирования */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.form-select {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 </style>

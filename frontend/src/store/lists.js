@@ -263,6 +263,18 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
+  // (Этап 10) Копирование элемента из чужого списка в свой
+  async function copyItem(itemId, targetListId) {
+    error.value = null;
+    try {
+      await apiClient.post(`/items/${itemId}/copy`, { target_list_id: targetListId });
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось скопировать элемент.';
+      console.error(e);
+      throw e;
+    }
+  }
+
 
   return { 
     lists, 
@@ -286,5 +298,7 @@ export const useListsStore = defineStore('lists', () => {
     toggleLike,
     addComment,
     deleteComment
+    ,
+    copyItem
   };
 });

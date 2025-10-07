@@ -30,6 +30,7 @@
         @edit="openItemModal(item)"
         @delete="handleDeleteItem(item.id)"
         @open-lightbox="openLightbox"
+        @copy-item="openCopyModal"
         :id="`item-${item.id}`"
       />
     </div>
@@ -56,6 +57,22 @@
   </div>
   <div v-else-if="isLoading" class="loading-spinner">Загрузка списка...</div>
   <div v-else class="error-message">{{ error }}</div>
+
+  <!-- Этап 10: Модалка выбора списка для копирования -->
+  <div v-if="isCopyModalVisible" class="modal-overlay" @click.self="closeCopyModal">
+    <div class="modal-content">
+      <h3>Скопировать желание в...</h3>
+      <p v-if="copyError" class="error-message">{{ copyError }}</p>
+      <select v-model="selectedListId" class="form-select">
+        <option disabled value="">Выберите ваш список</option>
+        <option v-for="l in listsStore.lists" :key="l.id" :value="l.id">{{ l.title }}</option>
+      </select>
+      <div class="modal-actions">
+        <button @click="closeCopyModal" class="btn btn-secondary">Отмена</button>
+        <button @click="handleCopyConfirm" class="btn btn-primary" :disabled="!selectedListId">Подтвердить</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>

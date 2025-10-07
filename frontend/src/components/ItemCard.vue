@@ -25,6 +25,15 @@
           <span>💬</span>
           <span>{{ item.comments.length }}</span>
         </div>
+        <!-- Этап 10: Кнопка копирования для не-владельца -->
+        <button
+          v-if="authStore.user && !isOwner"
+          class="icon-button copy-button"
+          title="Добавить к себе"
+          @click.stop="$emit('copy-item', item.id)"
+        >
+          ➕
+        </button>
       </div>
       <div class="reservation-status" v-if="isPublic && item.is_reserved">
         <span>Забронировано</span>
@@ -62,7 +71,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(['edit', 'delete', 'open-lightbox']);
+defineEmits(['edit', 'delete', 'open-lightbox', 'copy-item']);
 
 const authStore = useAuthStore();
 const showComments = ref(false);
@@ -172,6 +181,7 @@ const getFullImageUrl = (relativePath) => {
 }
 .edit-button { color: var(--edit-color); }
 .delete-button { color: var(--secondary-color); }
+.copy-button { color: var(--primary-color); }
 
 
 .card-footer {

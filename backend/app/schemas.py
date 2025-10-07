@@ -124,6 +124,10 @@ class ItemUpdate(BaseModel):
     image_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
 
+# (Этап 10) Схема для запроса копирования элемента
+class ItemCopy(BaseModel):
+    target_list_id: int
+
 class ItemRead(ItemBase):
     id: int
     list_id: int

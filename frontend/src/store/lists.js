@@ -238,6 +238,8 @@ export const useListsStore = defineStore('lists', () => {
         // ИЗМЕНЕНИЕ: Используем переданный publicKey
         await fetchPublicListByKey(publicKey); 
         await fetchUserReservations();
+      } else {
+        await fetchListById(currentList.value.id);
       }
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось забронировать элемент.';
@@ -255,6 +257,8 @@ export const useListsStore = defineStore('lists', () => {
         // ИЗМЕНЕНИЕ: Используем переданный publicKey
         await fetchPublicListByKey(publicKey);
         await fetchUserReservations();
+      } else {
+        await fetchListById(currentList.value.id);
       }
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось снять бронь.';

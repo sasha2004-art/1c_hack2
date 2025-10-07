@@ -75,6 +75,7 @@ class NotificationsResponse(BaseModel):
 class PublicListForProfile(BaseModel):
     """Упрощенная схема списка для отображения в профиле."""
     id: int
+    public_url_key: UUID
     title: str
     list_type: ListType
     privacy_level: PrivacyLevel

@@ -26,7 +26,24 @@
           <span>{{ item.comments.length }}</span>
         </div>
       </div>
-      <div class="reservation-status" v-if="isPublic && item.is_reserved">
+      <!-- НОВЫЙ БЛОК: КНОПКИ БРОНИРОВАНИЯ -->
+      <div class="reservation-actions" v-if="isWishlist && isLoggedIn && !isOwner">
+        <button 
+          v-if="!item.is_reserved" 
+          @click="$emit('reserve', item.id)" 
+          class="reserve-button"
+        >
+          Забронировать
+        </button>
+        <button 
+          v-if="item.is_reserved" 
+          @click="$emit('unreserve', item.id)" 
+          class="unreserve-button"
+        >
+          Отменить бронь
+        </button>
+      </div>
+      <div class="reservation-status" v-if="item.is_reserved">
         <span>Забронировано</span>
       </div>
     </div>
@@ -52,22 +69,30 @@ const props = defineProps({
     type: Object,
     required: true
   },
-  listOwnerId: {
-    type: Number,
-    required: true
+  isOwner: {
+    type: Boolean,
+    default: false
   },
   isPublic: {
+    type: Boolean,
+    default: false
+  },
+  isLoggedIn: {
+    type: Boolean,
+    default: false
+  },
+  isWishlist: {
     type: Boolean,
     default: false
   }
 });
 
-defineEmits(['edit', 'delete', 'open-lightbox']);
+defineEmits(['edit', 'delete', 'open-lightbox', 'reserve', 'unreserve']);
 
 const authStore = useAuthStore();
 const showComments = ref(false);
 
-const isOwner = computed(() => authStore.user && authStore.user.id === props.listOwnerId);
+// isOwner теперь приходит как prop
 
 const toggleComments = () => {
   showComments.value = !showComments.value;
@@ -203,5 +228,38 @@ const getFullImageUrl = (relativePath) => {
   border-radius: 4px;
   font-size: 0.8rem;
   font-weight: bold;
+}
+
+.reservation-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.reserve-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.reserve-button:hover {
+  background-color: #218838;
+}
+
+.unreserve-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.unreserve-button:hover {
+  background-color: #c82333;
 }
 </style>

@@ -7,7 +7,7 @@
         <p v-if="currentList.description">{{ currentList.description }}</p>
       </div>
       <!-- --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- -->
-      <div class="list-actions">
+      <div v-if="isOwner" class="list-actions">
         <button @click="openItemModal(null)">Добавить элемент</button>
         <!-- Кнопка заменена на иконку с подсказкой -->
         <button @click="openSettingsModal" class="icon-button settings-button" title="Настройки списка">
@@ -25,11 +25,15 @@
         v-for="item in currentList.items"
         :key="item.id"
         :item="item"
-        :list-owner-id="currentList.owner_id"
-        :is-public="false"
+        :is-owner="isOwner"
+        :is-logged-in="isLoggedIn"
+        :is-wishlist="isWishlist"
+        :is-public="isPublic"
         @edit="openItemModal(item)"
         @delete="handleDeleteItem(item.id)"
         @open-lightbox="openLightbox"
+        @reserve="handleReserveItem"
+        @unreserve="handleUnreserveItem"
         :id="`item-${item.id}`"
       />
     </div>
@@ -59,9 +63,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, onMounted, watch, nextTick, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useListsStore } from '@/store/lists';
+import { useAuthStore } from '@/store/auth'; // <-- ИМПОРТИРУЕМ AUTH STORE
 import { storeToRefs } from 'pinia';
 import ItemCard from '@/components/ItemCard.vue';
 import ItemFormModal from '@/components/ItemFormModal.vue';
@@ -77,7 +82,24 @@ const props = defineProps({
 
 const route = useRoute();
 const listsStore = useListsStore();
+const authStore = useAuthStore(); // <-- СОЗДАЕМ ЭКЗЕМПЛЯР
 const { currentList, isLoading, error } = storeToRefs(listsStore);
+
+// --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ №3: Логика определения владельца ---
+const isOwner = computed(() => {
+  // Используем optional chaining (?.) на случай, если данные еще не загрузились
+  if (!authStore.user || !currentList.value) {
+    return false;
+  }
+  // Сравниваем ID залогиненного пользователя с ID владельца списка
+  return authStore.user.id === currentList.value.owner_id;
+});
+
+const isLoggedIn = computed(() => !!authStore.user);
+
+const isWishlist = computed(() => currentList.value?.is_wishlist || false);
+
+const isPublic = computed(() => route.path.startsWith('/public'));
 
 const isItemModalVisible = ref(false);
 const isSettingsModalVisible = ref(false);
@@ -109,6 +131,14 @@ const handleDeleteItem = async (itemId) => {
   }
 };
 
+const handleReserveItem = async (itemId) => {
+  await listsStore.reserveItem(itemId, isPublic.value ? props.id : null);
+};
+
+const handleUnreserveItem = async (itemId) => {
+  await listsStore.unreserveItem(itemId, isPublic.value ? props.id : null);
+};
+
 const openLightbox = (imageUrl) => {
   const backendUrl = 'http://localhost:8000';
   selectedImageUrl.value = `${backendUrl}${imageUrl}`;
@@ -134,7 +164,11 @@ const scrollToAndHighlightItem = async (hash) => {
 };
 
 onMounted(async () => {
-  await listsStore.fetchListById(Number(props.id));
+  if (isPublic.value) {
+    await listsStore.fetchPublicListByKey(props.id);
+  } else {
+    await listsStore.fetchListById(Number(props.id));
+  }
   scrollToAndHighlightItem(route.hash);
 });
 

@@ -6,7 +6,7 @@ import Register from '../views/Register.vue'
 // Импортируем новый компонент страницы
 import ListView from '../views/ListView.vue'
 // Импортируем новый компонент публичной страницы
-import PublicListView from '../views/PublicListView.vue'
+// import PublicListView from '../views/PublicListView.vue' // УДАЛЯЕМ ИМПОРТ
 // (Задача 7.1) Импортируем новый компонент
 import FriendsView from '../views/FriendsView.vue'
 // (Задача 8.1) Импортируем новый компонент
@@ -46,7 +46,7 @@ const routes = [
   {
     path: '/public/lists/:publicKey',
     name: 'PublicListView',
-    component: PublicListView,
+    component: ListView, // <-- ИЗМЕНЕНО
     props: true // Передаем :publicKey как пропс
     // Этот роут не требует аутентификации (нет meta: { requiresAuth: true })
   },

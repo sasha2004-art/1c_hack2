@@ -37,9 +37,8 @@
 
       <h3>Списки пользователя</h3>
       <div v-if="profile.public_lists && profile.public_lists.length > 0" class="lists-grid">
-         <!-- Здесь можно использовать ваш компонент ListCard для отображения списков -->
          <div v-for="list in profile.public_lists" :key="list.id" class="list-card-item">
-            <router-link :to="{ name: 'ListView', params: { id: list.id } }">
+            <router-link :to="getListLink(list)">
               {{ list.title }} ({{ list.privacy_level }})
             </router-link>
          </div>
@@ -62,6 +61,24 @@ const userId = computed(() => parseInt(route.params.userId, 10));
 
 // Создаем реактивную ссылку на данные профиля из стора
 const profile = computed(() => friendsStore.currentUserProfile);
+
+// --- НОВЫЙ МЕТОД ДЛЯ ГЕНЕРАЦИИ ССЫЛОК ---
+const getListLink = (list) => {
+  // Если список публичный, всегда используем публичный маршрут
+  if (list.privacy_level === 'public') {
+    return {
+      name: 'PublicListView',
+      params: { publicKey: list.public_url_key }
+    };
+  }
+  
+  // Для всех остальных видимых списков (например, 'friends_only')
+  // используем "личный" маршрут, который требует аутентификации.
+  return {
+    name: 'ListView',
+    params: { id: list.id }
+  };
+};
 
 // --- ОСНОВНАЯ ЛОГИКА ---
 

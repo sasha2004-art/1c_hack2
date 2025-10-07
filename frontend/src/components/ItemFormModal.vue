@@ -2,7 +2,7 @@
   <div class="modal-backdrop" @click.self="closeModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Добавить новый элемент</h2>
+        <h2>{{ props.initialItem ? 'Редактировать элемент' : 'Добавить новый элемент' }}</h2>
         <button @click="closeModal" class="close-button">&times;</button>
       </div>
       <div class="modal-body">
@@ -42,14 +42,18 @@ const props = defineProps({
   listId: {
     type: Number,
     required: true,
-  }
+  },
+  initialItem: {
+    type: Object, // Предполагаем, что это объект элемента со свойствами title и description
+    default: null,
+  },
 });
 
 const emit = defineEmits(['close']);
 const store = useListsStore();
 
 // Единое состояние для всего контента
-const content = ref('');
+const content = ref(props.initialItem?.description || '');
 const error = ref(null);
 
 const closeModal = () => {
@@ -91,14 +95,27 @@ const handleSubmit = async () => {
   }
 
   try {
-    const newItem = await store.addItem(props.listId, parsedData);
-    
+    if (props.initialItem) {
+      // Обновление существующего элемента
+      await store.updateItem(props.initialItem.id, { 
+        title: parsedData.title,
+        description: parsedData.description,
+      });
+    } else {
+      // Добавление нового элемента
+      await store.addItem(props.listId, parsedData);
+    }
     
     closeModal();
   } catch (e) {
-    error.value = store.error || 'Не удалось создать элемент.';
+    error.value = store.error || 'Не удалось сохранить элемент.';
   }
 };
+
+// Убедимся, что контент обновляется, если initialItem изменяется (например, при открытии модального окна для другого элемента)
+// watch(() => props.initialItem, (newItem) => {
+//   content.value = newItem?.description || '';
+// }, { immediate: true });
 
 </script>
 

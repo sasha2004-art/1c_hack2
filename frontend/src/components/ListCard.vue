@@ -15,7 +15,7 @@
         <!-- --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлено условие `|| list.privacy_level === 'friends_only'` --- -->
         <button 
           v-if="list.privacy_level === 'public' || list.privacy_level === 'friends_only'" 
-          @click.stop="copyPublicLink" 
+          @click.stop="$emit('share', list)"
           class="action-btn share-btn" 
           title="Скопировать ссылку для общего доступа">
           🔗
@@ -40,7 +40,7 @@ const props = defineProps({
 });
 
 // ИЗМЕНЕНИЕ: Определяем события, которые компонент может отправлять
-defineEmits(['edit', 'delete']);
+defineEmits(['edit', 'delete', 'share']);
 
 const router = useRouter();
 
@@ -70,20 +70,6 @@ const translatedPrivacy = computed(() => privacyTranslations[props.list.privacy_
 
 const navigateToList = () => {
   router.push({ name: 'ListView', params: { id: props.list.id } });
-};
-
-// НОВАЯ ФУНКЦИЯ ДЛЯ КОПИРОВАНИЯ ССЫЛКИ
-const copyPublicLink = () => {
-  const publicKey = props.list.public_url_key;
-  // window.location.origin дает нам "http://localhost" или домен сайта в продакшене
-  const publicUrl = `${window.location.origin}/public/lists/${publicKey}`;
-  
-  navigator.clipboard.writeText(publicUrl).then(() => {
-    alert('Публичная ссылка скопирована в буфер обмена!');
-  }).catch(err => {
-    console.error('Не удалось скопировать ссылку: ', err);
-    alert('Не удалось скопировать ссылку.');
-  });
 };
 </script>
 

@@ -18,6 +18,7 @@
         :list="list"
         @edit="openListModal(list)"
         @delete="handleDeleteList(list.id)"
+        @share="openShareModal(list)"
       />
     </div>
 
@@ -28,6 +29,12 @@
       @close="closeListModal"
       @list-updated="listsStore.fetchLists"
     />
+    <!-- Новое модальное окно для "Поделиться" -->
+    <ShareModal 
+      :is-open="isShareModalVisible" 
+      :list="listToShare" 
+      @close="closeShareModal" 
+    />
   </div>
 </template>
 
@@ -37,6 +44,7 @@ import { useListsStore } from '@/store/lists';
 import { storeToRefs } from 'pinia';
 import ListCard from '@/components/ListCard.vue';
 import ListFormModal from '@/components/ListFormModal.vue';
+import ShareModal from '@/components/ShareModal.vue';
 
 const listsStore = useListsStore();
 const { lists, isLoading } = storeToRefs(listsStore);
@@ -45,6 +53,10 @@ const { lists, isLoading } = storeToRefs(listsStore);
 // Устанавливаем значение по умолчанию в `false`
 const isListModalVisible = ref(false); 
 const editingList = ref(null);
+
+// --- Новое состояние для модального окна "Поделиться" ---
+const isShareModalVisible = ref(false);
+const listToShare = ref(null);
 
 const openListModal = (list = null) => {
   editingList.value = list;
@@ -55,6 +67,17 @@ const closeListModal = () => {
   isListModalVisible.value = false;
   editingList.value = null;
   listsStore.fetchLists(); // Добавляем вызов для обновления списков
+};
+
+// --- Новые функции для управления модальным окном "Поделиться" ---
+const openShareModal = (list) => {
+  listToShare.value = list;
+  isShareModalVisible.value = true;
+};
+
+const closeShareModal = () => {
+  isShareModalVisible.value = false;
+  listToShare.value = null;
 };
 
 const handleDeleteList = async (listId) => {

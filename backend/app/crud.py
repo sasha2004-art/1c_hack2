@@ -49,6 +49,15 @@ def create_friend_request(db: Session, requester_id: int, addressee_id: int) -> 
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
+    
+    # (Новое) Создаем уведомление для получателя
+    create_notification(
+        db,
+        recipient_id=addressee_id,
+        sender_id=requester_id,
+        type=models.NotificationType.FRIEND_REQUEST
+    )
+    
     return db_request
 
 def update_friendship_status(db: Session, db_friendship: models.Friendship, status: models.FriendshipStatus) -> models.Friendship:
@@ -237,6 +246,17 @@ def add_like(db: Session, item: models.Item, user: models.User) -> models.Like:
     db_like = models.Like(item_id=item.id, user_id=user.id)
     db.add(db_like)
     db.commit()
+
+    # (Новое) Создаем уведомление для владельца элемента, если это не он сам
+    if item.list.owner_id != user.id:
+        create_notification(
+            db,
+            recipient_id=item.list.owner_id,
+            sender_id=user.id,
+            type=models.NotificationType.LIKE,
+            related_item_id=item.id
+        )
+
     return db_like
 
 def remove_like(db: Session, db_like: models.Like):
@@ -257,6 +277,19 @@ def create_comment(db: Session, comment_data: schemas.CommentCreate, item_id: in
     db.add(db_comment)
     db.commit()
     db.refresh(db_comment)
+
+    # (Новое) Получаем элемент, чтобы узнать владельца
+    item = get_item(db, item_id)
+    # Создаем уведомление для владельца элемента, если это не он сам
+    if item and item.list.owner_id != user_id:
+         create_notification(
+            db,
+            recipient_id=item.list.owner_id,
+            sender_id=user_id,
+            type=models.NotificationType.COMMENT,
+            related_item_id=item.id
+        )
+
     return db_comment
 
 def delete_comment(db: Session, db_comment: models.Comment):
@@ -264,3 +297,47 @@ def delete_comment(db: Session, db_comment: models.Comment):
     db.delete(db_comment)
     db.commit()
     return db_comment
+
+# --- (Новое) CRUD для Уведомлений ---
+
+def create_notification(db: Session, recipient_id: int, sender_id: int, type: models.NotificationType, related_item_id: Optional[int] = None):
+    """Создать новое уведомление."""
+    db_notification = models.Notification(
+        recipient_id=recipient_id,
+        sender_id=sender_id,
+        type=type,
+        related_item_id=related_item_id
+    )
+    db.add(db_notification)
+    db.commit()
+    db.refresh(db_notification)
+    return db_notification
+
+def get_notifications_for_user(db: Session, user_id: int, limit: int = 20) -> TypingList[models.Notification]:
+    """Получить все уведомления для пользователя, отсортированные по дате."""
+    return db.query(models.Notification).options(
+        joinedload(models.Notification.sender)
+    ).filter(
+        models.Notification.recipient_id == user_id
+    ).order_by(models.Notification.created_at.desc()).limit(limit).all()
+
+def count_unread_notifications(db: Session, user_id: int) -> int:
+    """Подсчитать количество непрочитанных уведомлений."""
+    return db.query(models.Notification).filter(
+        models.Notification.recipient_id == user_id,
+        models.Notification.is_read == False
+    ).count()
+
+def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -> Optional[models.Notification]:
+    """Пометить уведомление как прочитанное."""
+    db_notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.recipient_id == user_id
+    ).first()
+
+    if db_notification and not db_notification.is_read:
+        db_notification.is_read = True
+        db.commit()
+        db.refresh(db_notification)
+        return db_notification
+    return None

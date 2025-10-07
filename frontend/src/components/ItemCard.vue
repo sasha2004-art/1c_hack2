@@ -1,188 +1,163 @@
+<!-- frontend/src/components/ItemCard.vue -->
 <template>
-  <div class="item-card" :class="{ 'is-reserved': isReserved }">
-    <!-- ЗАГОЛОВОК КАРТОЧКИ -->
-    <div class="card-header">
-      <h3 class="item-title">{{ item.title }}</h3>
-      <div v-if="!isGuest" class="item-actions">
-        <button @click="onEdit" class="action-btn edit-btn">✏️</button>
-        <button @click="onDelete" class="action-btn delete-btn">🗑️</button>
+  <div class="item-card">
+    <div class="card-content">
+      <div class="card-header">
+        <h3 class="item-title">{{ item.title }}</h3>
+        <div class="item-actions" v-if="isOwner">
+          <button @click.stop="$emit('edit', item)" class="icon-button edit-button">✏️</button>
+          <button @click.stop="$emit('delete', item.id)" class="icon-button delete-button">🗑️</button>
+        </div>
       </div>
+      <!-- Используем v-html для безопасной отрисовки HTML из редактора -->
+      <div class="item-description" v-html="item.description"></div>
     </div>
-
-    <!-- ОПИСАНИЕ (ИЗ QUILL) -->
-    <div v-if="item.description" class="item-description ql-editor" v-html="item.description"></div>
-
-    <!-- ФУТЕР С КНОПКАМИ -->
+    
     <div class="card-footer">
       <div class="interactions">
-        <LikeButton
-          :item-id="item.id"
-          :likes-count="item.likes_count"
-          :is-liked="item.is_liked_by_current_user || false"
-          :is-disabled="isGuest"
-        />
-        <button @click="showComments = !showComments" class="comments-toggle">
-          💬 {{ item.comments.length }}
-        </button>
+        <LikeButton :item="item" />
+        <div class="comments-info icon-button" @click="toggleComments">
+          <span>💬</span>
+          <span>{{ item.comments.length }}</span>
+        </div>
       </div>
-
-      <div class="reservation-status">
-        <button v-if="isGuest && isReservable && !isReserved && !isMyReservation" @click="onReserve">
-          Забронировать
-        </button>
-        <button v-if="isGuest && isMyReservation" @click="onUnreserve" class="unreserve-btn">
-          Снять бронь
-        </button>
-        <span v-if="isReserved" class="reserved-badge">
-          🎁 Забронировано
-        </span>
+      <div class="reservation-status" v-if="isPublic && item.is_reserved">
+        <span>Забронировано</span>
       </div>
     </div>
 
-    <!-- СЕКЦИЯ КОММЕНТАРИЕВ (ПОКАЗЫВАЕТСЯ ПО КЛИКУ) -->
-    <CommentsSection
+    <!-- Секция комментариев, которая появляется по клику -->
+    <CommentsSection 
       v-if="showComments"
-      :item-id="item.id"
+      :item-id="item.id" 
       :comments="item.comments"
-      :is-guest="isGuest"
+      :is-public-view="isPublic"
     />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import LikeButton from './LikeButton.vue';
+import { ref, computed } from 'vue';
+import { useAuthStore } from '@/store/auth';
+import LikeButton from './LikeButton.vue'; // Импортируем новый компонент
 import CommentsSection from './CommentsSection.vue';
 
-// Подключаем стили Quill для корректного отображения
-import '@vueup/vue-quill/dist/vue-quill.snow.css';
-
-// defineProps и defineEmits доступны автоматически в <script setup>
 const props = defineProps({
   item: {
     type: Object,
     required: true
   },
-  isGuest: {
+  listOwnerId: {
+    type: Number,
+    required: true
+  },
+  isPublic: {
     type: Boolean,
     default: false
-  },
-  isReservable: Boolean,
-  isReserved: Boolean,
-  isMyReservation: Boolean,
+  }
 });
 
-const emit = defineEmits(['edit', 'delete', 'reserve', 'unreserve']);
+defineEmits(['edit', 'delete']);
 
+const authStore = useAuthStore();
 const showComments = ref(false);
 
-const onEdit = () => emit('edit', props.item);
-const onDelete = () => emit('delete', props.item.id);
-const onReserve = () => emit('reserve', props.item.id);
-const onUnreserve = () => emit('unreserve', props.item.id);
+const isOwner = computed(() => authStore.user && authStore.user.id === props.listOwnerId);
+
+const toggleComments = () => {
+  showComments.value = !showComments.value;
+};
 </script>
 
 <style scoped>
-/* Стили остаются такими же, как в прошлый раз */
-.ql-editor {
-    padding: 1rem 0;
-    border: none;
-    line-height: 1.6;
-    background: transparent;
-    color: var(--text-color);
-}
-.ql-editor :deep(a) {
-  color: var(--primary-color);
-}
 .item-card {
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+  background-color: var(--card-bg-color, white);
+  border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.2s ease-in-out;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Главное свойство для прижатия футера */
+  transition: box-shadow 0.3s;
+  min-height: 150px; /* Минимальная высота, чтобы карточки выглядели ровно */
 }
 .item-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 1rem;
+  gap: 0.5rem;
 }
+
 .item-title {
-  margin: 0;
-  font-size: 1.5em;
+  margin: 0 0 0.5rem 0;
   color: var(--text-color);
   word-break: break-word;
 }
+
+.item-description {
+  margin-top: 0.5rem;
+  color: var(--text-color);
+  opacity: 0.9;
+  font-size: 0.9rem;
+  word-wrap: break-word;
+}
+/* Стили для контента из Quill редактора */
+.item-description :deep(p) {
+  margin: 0;
+}
+.item-description :deep(ul), .item-description :deep(ol) {
+  padding-left: 20px;
+  margin-bottom: 0;
+}
+
 .item-actions {
   display: flex;
   gap: 0.5rem;
 }
-.action-btn {
+
+.icon-button {
   background: none;
   border: none;
   cursor: pointer;
   font-size: 1.2rem;
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: background-color 0.2s;
+  padding: 0;
 }
-.action-btn:hover {
-    background-color: rgba(0,0,0,0.1);
-}
+.edit-button { color: var(--edit-color); }
+.delete-button { color: var(--secondary-color); }
+
+
 .card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
+  margin-top: 1rem; /* Отступ от контента */
+  padding-top: 0.75rem; /* Отступ внутри футера */
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
 .interactions {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
-.comments-toggle {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-color);
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 6px 12px;
-    border-radius: 20px;
-    transition: background-color 0.2s;
+
+.comments-info {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-color);
 }
-.comments-toggle:hover {
-    background-color: #e4e6e9;
-}
-.reserved-badge {
-    font-weight: bold;
-    color: #28a745;
-}
-.is-reserved {
-    opacity: 0.7;
-    background-color: #f8f9fa;
-}
-.reservation-status button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    background-color: var(--primary-color);
-    color: var(--primary-text-color);
-    font-weight: bold;
-}
-.unreserve-btn {
-    background-color: var(--secondary-color);
-    color: var(--secondary-text-color);
+
+.reservation-status span {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
 }
 </style>

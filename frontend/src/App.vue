@@ -7,6 +7,7 @@
         <router-link to="/friends" class="nav-link">Друзья</router-link>
         <div class="nav-user-info">
           <span v-if="authStore.user">{{ authStore.user.email }}</span>
+          <NotificationBell /> <!-- Наш новый компонент -->
           <button @click="authStore.logout()" class="btn btn-secondary">Выйти</button>
         </div>
       </nav>
@@ -23,9 +24,13 @@ import { useRouter } from 'vue-router'; // ИЗМЕНЕНИЕ: Импортир�
 import { useAuthStore } from './store/auth';
 import { useListsStore } from './store/lists';
 import { themes } from './themes.js';
+// Импортируем NotificationBell и useNotificationStore
+import NotificationBell from './components/NotificationBell.vue';
+import { useNotificationStore } from './store/notifications';
 
 const authStore = useAuthStore();
 const listsStore = useListsStore();
+const notificationStore = useNotificationStore(); // Получаем экземпляр
 const router = useRouter(); // ИЗМЕНЕНИЕ: Получаем доступ к роутеру
 
 // Функция для применения стилей темы
@@ -58,6 +63,17 @@ watch(() => router.currentRoute.value.name, (routeName) => {
   }
 });
 
+// (Новое) Следим за изменением токена (логин/логаут)
+watch(() => authStore.token, (newToken) => {
+  if (newToken) {
+    // Если пользователь вошел, запускаем опрос
+    notificationStore.startPolling();
+  } else {
+    // Если вышел - останавливаем
+    notificationStore.stopPolling();
+  }
+});
+
 
 onMounted(() => {
   if (authStore.token && !authStore.user) {
@@ -65,6 +81,12 @@ onMounted(() => {
   }
   // Применяем тему по умолчанию при самой первой загрузке приложения
   applyTheme('default');
+  
+  // (Новое) При монтировании App.vue, если пользователь авторизован,
+  // запускаем опрос уведомлений
+  if (authStore.token) {
+    notificationStore.startPolling();
+  }
 });
 
 </script>

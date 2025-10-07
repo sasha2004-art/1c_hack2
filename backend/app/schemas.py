@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
-from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus
+from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus, NotificationType
 
 # --- Схемы для пользователя ---
 
@@ -51,6 +51,23 @@ class FriendsAndRequestsResponse(BaseModel):
     friends: List[FriendRead] = []
     incoming_requests: List[IncomingRequestRead] = []
     outgoing_requests: List[OutgoingRequestRead] = []
+
+# --- (Новое) Схемы для уведомлений ---
+class NotificationRead(BaseModel):
+    id: int
+    is_read: bool
+    type: NotificationType
+    created_at: datetime
+    sender: UserInComment # Информация о том, кто совершил действие
+    related_item_id: Optional[int] = None
+    related_list_id: Optional[int] = None # <--- ДОБАВЛЕНО ЭТО ПОЛЕ
+    
+    class Config:
+        from_attributes = True
+
+class NotificationsResponse(BaseModel):
+    unread_count: int
+    notifications: List[NotificationRead]
 
 # (Задача 2.1) Новые схемы для страницы профиля
 class PublicListForProfile(BaseModel):

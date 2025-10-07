@@ -6,6 +6,12 @@ from sqlalchemy.dialects.postgresql import UUID # Импортируем тип 
 import enum
 from .db.base import Base
 
+# (Новое) Перечисление для типов уведомлений
+class NotificationType(str, enum.Enum):
+    FRIEND_REQUEST = "friend_request"
+    LIKE = "like"
+    COMMENT = "comment"
+
 class User(Base):
     """
     Модель пользователя в базе данных.
@@ -36,6 +42,9 @@ class User(Base):
         back_populates="addressee", 
         cascade="all, delete-orphan"
     )
+    
+    # (Новое) Связь для полученных уведомлений
+    notifications = relationship("Notification", foreign_keys="[Notification.recipient_id]", back_populates="recipient", cascade="all, delete-orphan")
 
 
 class ListType(str, enum.Enum):
@@ -182,3 +191,24 @@ class Friendship(Base):
     __table_args__ = (
         UniqueConstraint('requester_id', 'addressee_id', name='unique_friendship_request'),
     )
+
+# (Новая) Модель для уведомлений
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    is_read = Column(Boolean, default=False, nullable=False)
+    type = Column(Enum(NotificationType), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Кому предназначено уведомление
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    recipient = relationship("User", foreign_keys=[recipient_id])
+    
+    # Кто отправил (инициировал действие)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sender = relationship("User", foreign_keys=[sender_id])
+
+    # С каким элементом связано уведомление (необязательно)
+    related_item_id = Column(Integer, ForeignKey("items.id"), nullable=True)
+    related_item = relationship("Item")

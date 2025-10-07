@@ -158,6 +158,42 @@ onMounted(async () => {
 watch(() => route.hash, (newHash) => {
     scrollToAndHighlightItem(newHash);
 });
+
+// Этап 10: состояние модалки копирования
+const isCopyModalVisible = ref(false);
+const itemToCopyId = ref(null);
+const selectedListId = ref('');
+const copyError = ref('');
+
+// Дополнительно загружаем свои списки (для выпадающего списка)
+onMounted(async () => {
+  await listsStore.fetchLists();
+});
+
+// Методы модалки копирования
+const openCopyModal = (itemId) => {
+  itemToCopyId.value = itemId;
+  selectedListId.value = '';
+  copyError.value = '';
+  isCopyModalVisible.value = true;
+};
+
+const closeCopyModal = () => {
+  isCopyModalVisible.value = false;
+  itemToCopyId.value = null;
+  selectedListId.value = '';
+};
+
+const handleCopyConfirm = async () => {
+  if (!selectedListId.value || !itemToCopyId.value) return;
+  try {
+    await listsStore.copyItem(itemToCopyId.value, Number(selectedListId.value));
+    alert('Желание успешно скопировано!');
+    closeCopyModal();
+  } catch (e) {
+    copyError.value = listsStore.error || 'Не удалось скопировать элемент';
+  }
+};
 </script>
 
 <style scoped>
@@ -242,5 +278,44 @@ watch(() => route.hash, (newHash) => {
   transition: box-shadow 0.5s ease-in-out, border-color 0.5s ease-in-out;
   box-shadow: 0 0 15px 5px var(--edit-color, gold);
   border-color: var(--edit-color, gold) !important;
+}
+
+/* Этап 10: стили модалки копирования */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.form-select {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 </style>

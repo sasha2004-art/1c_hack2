@@ -47,7 +47,7 @@
         @delete-item="handleDeleteItem"
         @reserve-item="handleReserve"
         @unreserve-item="handleUnreserve"
-      ></ItemCard>
+      />
     </div>
 
     <!-- Модальное окно для списка -->

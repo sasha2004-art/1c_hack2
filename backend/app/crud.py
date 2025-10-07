@@ -229,6 +229,16 @@ def delete_item(db: Session, db_item: models.Item):
     db.commit()
     return db_item
 
+def copy_item_to_list(db: Session, source_item: models.Item, target_list_id: int) -> models.Item:
+    """Копирует существующий элемент в указанный целевой список."""
+    new_item_data = schemas.ItemCreate(
+        title=source_item.title,
+        description=source_item.description,
+        image_url=source_item.image_url,
+        thumbnail_url=source_item.thumbnail_url,
+    )
+    return create_list_item(db=db, item_data=new_item_data, list_id=target_list_id)
+
 # --- CRUD для Бронирования ---
 
 def get_reservation_by_item_id(db: Session, item_id: int) -> Optional[models.Reservation]:

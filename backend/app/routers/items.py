@@ -102,3 +102,38 @@ def upload_item_image(
     updated_item = crud.update_item(db=db, db_item=db_item, item_data=item_data)
     
     return updated_item
+
+@router.post("/items/{item_id}/copy", response_model=schemas.ItemRead, status_code=status.HTTP_201_CREATED)
+def copy_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Копирование элемента из чужого списка в свой список по умолчанию (или создание нового)."""
+    source_item = crud.get_item(db, item_id=item_id)
+    if not source_item:
+        raise HTTPException(status_code=404, detail="Исходный элемент не найден")
+
+    # Нельзя скопировать элемент из своего же списка
+    if source_item.list.owner_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Нельзя скопировать элемент из своего же списка")
+
+    # Получаем или создаем список по умолчанию для пользователя
+    # В данном случае, просто возьмем первый попавшийся список пользователя
+    # В реальном приложении, возможно, нужно создать специальный список "Мои сохранения" или "Избранное"
+    user_lists = crud.get_lists_by_user(db, user_id=current_user.id)
+    if not user_lists:
+        # Если у пользователя нет списков, создаем новый список "Мои элементы"
+        new_list_data = schemas.ListCreate(
+            title="Мои сохраненные элементы",
+            description="Элементы, скопированные из других списков",
+            list_type=models.ListType.WISHLIST, # Используем WISHLIST как тип по умолчанию
+            privacy_level=models.PrivacyLevel.PRIVATE # Приватный по умолчанию
+        )
+        target_list = crud.create_user_list(db=db, list_data=new_list_data, user_id=current_user.id)
+    else:
+        target_list = user_lists[0] # Используем первый попавшийся список пользователя
+    
+    copied_item = crud.copy_item_to_list(db=db, source_item=source_item, target_list_id=target_list.id)
+    
+    return copied_item

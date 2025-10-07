@@ -56,7 +56,7 @@ const handleEditClick = () => {
       <button v-if="isOwner" @click="handleEditClick" class="btn-edit">Изменить</button>
     </div>
 
-    <CommentsSection v-if="showComments" :item-id="item.id" />
+    <CommentsSection v-if="showComments" :item-id="item.id" :comments="item.comments" />
 
     <Lightbox
       :is-visible="isLightboxVisible"
@@ -76,13 +76,15 @@ const handleEditClick = () => {
   flex-direction: column;
   transition: box-shadow 0.3s;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  /* --- ДОБАВЛЕНО СВОЙСТВО --- */
+  flex-grow: 1;
 }
 .item-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .item-image-container {
   width: 100%;
-  height: 200px;
+  height: 200px; 
   overflow: hidden;
   cursor: pointer;
 }
@@ -106,10 +108,11 @@ const handleEditClick = () => {
 .item-description {
   font-size: 0.9rem;
   opacity: 0.8;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
-/* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
-/* Селекторы :deep вынесены из .item-description и записаны как отдельные правила */
 .item-description :deep(p) { 
   margin-bottom: 0.5em; 
 }
@@ -119,8 +122,6 @@ const handleEditClick = () => {
 .item-description :deep(ul), .item-description :deep(ol) { 
   padding-left: 1.5em; 
 }
-/* --- КОНЕЦ ИСПРАВЛЕНИЯ --- */
-
 
 .card-footer {
   padding: 0.5rem 1rem;

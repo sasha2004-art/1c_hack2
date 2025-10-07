@@ -167,6 +167,18 @@ const handleSubmit = async () => {
   max-width: 600px;
   position: relative;
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  /* --- ДОБАВЛЕННЫЕ ИЗМЕНЕНИЯ --- */
+  max-height: 95vh; /* Ограничиваем высоту до 95% высоты экрана */
+  overflow-y: auto; /* Добавляем вертикальную прокрутку, если контент не помещается */
+  display: flex;      /* Используем flexbox для лучшего управления внутренним пространством */
+  flex-direction: column;
+}
+
+/* --- ДОБАВЛЕННЫЙ СТИЛЬ ДЛЯ ФОРМЫ --- */
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Позволяет форме занять все доступное пространство */
 }
 
 .modal-close {

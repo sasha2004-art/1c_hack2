@@ -20,13 +20,19 @@
             :is-owner="isOwner"
           />
           <div class="public-actions">
+            <!-- --- НАЧАЛО ИЗМЕНЕНИЙ --- -->
             <button
               v-if="authStore.token && !isOwner"
-              class="btn btn-primary"
+              class="btn btn-primary copy-button"
+              title="Копировать к себе"
               @click="openCopyModal(item.id)"
             >
-              Копировать к себе
+              <!-- Текст заменен на SVG иконку -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
             </button>
+            <!-- --- КОНЕЦ ИЗМЕНЕНИЙ --- -->
           </div>
         </div>
       </div>
@@ -163,7 +169,8 @@ const handleCopyConfirm = async () => {
     await listsStore.copyItem(itemToCopyId.value, Number(selectedListId.value));
     alert('Желание успешно скопировано!');
     closeCopyModal();
-  } catch (e) {
+  } catch (e)
+  {
     copyError.value = listsStore.error || 'Не удалось скопировать элемент';
   }
 };
@@ -204,10 +211,19 @@ const handleUnreserve = async (itemId) => {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
 }
+
+.item-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
 .item-card {
   background-color: var(--card-bg-color);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  /* --- ИЗМЕНЕНИЕ: Убираем скругление нижних углов --- */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-radius: 8px 8px 0 0;
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -247,7 +263,7 @@ const handleUnreserve = async (itemId) => {
     border: 1px dashed var(--border-color);
     border-radius: 8px;
 }
-/* Стили для кнопок (можно вынести в main.css) */
+
 .btn {
   padding: 0.5rem 1rem;
   border: none;
@@ -272,6 +288,32 @@ const handleUnreserve = async (itemId) => {
   border-radius: 8px;
   margin-top: 10px;
 }
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ КНОПКИ-ИКОНКИ --- */
+.public-actions {
+  /* Заставляет кнопку растянуться на всю ширину родителя */
+  display: flex;
+}
+
+.copy-button {
+  width: 100%;
+  /* Убираем скругление верхних углов, чтобы кнопка прилегала к карточке */
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  /* Центрируем иконку внутри кнопки */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Уменьшаем отступы, т.к. внутри иконка, а не текст */
+  padding: 0.6rem;
+}
+
+.copy-button svg {
+  width: 22px;
+  height: 22px;
+}
+/* --- КОНЕЦ НОВЫХ СТИЛЕЙ --- */
+
 
 /* Этап 10: стили модалки копирования */
 .modal-overlay {

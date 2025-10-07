@@ -18,35 +18,40 @@ EXCLUDE_DIRS = {
     "node_modules",
     "migrations",  # Часто лучше исключить папки с миграциями БД
     ".vscode",  # Папка настроек VSCode
-    "dist",  # Папка сборки
+    "dist",  # Папка сборки фронтенда
     "build",  # Еще одна папка сборки
-    "txt",  # Папка для временных файлов
+    "static/uploads", # Исключаем загруженные пользователями файлы
+    "static/backgrounds",
 }
 
 # Файлы, которые нужно исключить
 EXCLUDE_FILES = {
     os.path.basename(__file__),  # Исключаем сам этот скрипт
     "all_code.txt",  # Исключаем выходной файл
-    "requirements.lock",  # Часто генерируемые файлы зависимостей
-    "validator.md",
-    "temp",
+    "package-lock.json", # Файл лока зависимостей
+    "yarn.lock",
+    "notification.mp3", # Исключаем бинарные файлы
 }
 
-# === НОВЫЕ НАСТРОЙКИ ДЛЯ ВЫБОРА ФАЙЛОВ ===
+# === МОДИФИЦИРОВАННЫЕ НАСТРОЙКИ ДЛЯ ВЫБОРА ФАЙЛОВ ===
 
 # Расширения файлов, которые нужно включить
 INCLUDE_EXTENSIONS = {
+    # Backend
     ".py",
-    ".yml",
-    ".yaml",  # Часто используется наравне с .yml
-    "html",  # Включаем HTML-файлы
-    ".md",  # Включаем Markdown-файлы
-    ".txt",  # Включаем текстовые файлы
-    ".ini",  # Включаем INI-файлы
-    ".toml"  # Включаем TOML-файлы
-    "css",
+    # Frontend
+    ".vue",
     ".js",
+    ".html",
+    ".css",
     ".json",
+    # Configs
+    ".yml",
+    ".yaml",
+    ".conf",
+    # Docs & Text
+    ".md",
+    ".txt",
 }
 
 # Имена файлов, которые нужно включить (даже без расширения или с нестандартным)
@@ -55,6 +60,7 @@ INCLUDE_FILENAMES = {
     ".env",
     ".gitignore",
     "requirements.txt",
+    "nginx.conf",
 }
 
 # --- КОНЕЦ НАСТРОЕК ---
@@ -68,7 +74,7 @@ def get_project_structure():
     try:
         # Формируем команду для tree, исключая указанные директории
         # -I - это флаг для исключения паттернов (папок/файлов)
-        exclude_pattern = "|".join(EXCLUDE_DIRS)
+        exclude_pattern = "|".join(EXCLUDE_DIRS | {"node_modules", "__pycache__"})
 
         # Запускаем команду tree. Работает на Linux и macOS.
         # Для Windows, возможно, понадобится установить 'tree' (например, через Chocolatey)
@@ -103,11 +109,12 @@ def collect_project_files_content():
         # Исключаем нежелательные директории из обхода
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
 
-        for file in files:
-            # Получаем расширение файла
-            _, extension = os.path.splitext(file)
+        for file in sorted(files): # Сортируем для последовательного вывода
+            file_path = os.path.join(root, file)
+            relative_path = os.path.relpath(file_path, PROJECT_ROOT).replace("\\", "/") # Нормализуем путь для Windows
 
             # Проверяем, нужно ли включать этот файл
+            _, extension = os.path.splitext(file)
             should_include = (
                 file in INCLUDE_FILENAMES or extension in INCLUDE_EXTENSIONS
             )
@@ -115,9 +122,6 @@ def collect_project_files_content():
             # Пропускаем файл, если он не подходит или находится в списке исключений
             if not should_include or file in EXCLUDE_FILES:
                 continue
-
-            file_path = os.path.join(root, file)
-            relative_path = os.path.relpath(file_path, PROJECT_ROOT)
 
             print(f"  -> Добавляется файл: {relative_path}")
 
@@ -129,7 +133,7 @@ def collect_project_files_content():
                 file_block = (
                     f"--- НАЧАЛО ФАЙЛА: {relative_path} ---\n\n"
                     f"{content}\n\n"
-                    f"--- КОНЕЦ ФАЙЛА: {relative_path} ---\n\n"
+                    f"--- КОНЕЦ ФАЙЛА: {relative_path} ---\n"
                 )
                 all_content.append(file_block)
             except Exception as e:
@@ -138,7 +142,7 @@ def collect_project_files_content():
                     f"--- НЕ УДАЛОСЬ ПРОЧИТАТЬ ФАЙЛ: {relative_path} | Ошибка: {e} ---\n\n"
                 )
 
-    return "".join(all_content)
+    return "\n\n".join(all_content)
 
 
 def main():

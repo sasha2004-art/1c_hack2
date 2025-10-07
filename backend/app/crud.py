@@ -1,6 +1,5 @@
-from typing import List as TypingList, Optional
+from typing import Optional, List as TypingList
 from uuid import UUID
-
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 

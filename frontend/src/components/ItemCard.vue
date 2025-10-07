@@ -123,6 +123,7 @@ const getFullImageUrl = (relativePath) => {
   margin: 0;
 }
 .item-description :deep(img) {
+  display: block;
   max-width: 100%;
   height: auto;
   max-height: 250px;

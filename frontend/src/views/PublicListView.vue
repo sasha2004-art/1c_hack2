@@ -13,7 +13,7 @@
         <div class="item-card" v-for="item in list.items" :key="item.id">
           <img v-if="item.thumbnail_url" :src="`http://localhost:8000${item.thumbnail_url}`" alt="Item image" class="item-image"/>
           <h3>{{ item.title }}</h3>
-          <p v-if="item.description" v-html="item.description"></p>
+          <p v-if="item.description" class="item-description" v-html="item.description"></p>
           
           <div class="card-footer">
             <div class="interactions">
@@ -223,5 +223,14 @@ const handleUnreserve = async (itemId) => {
 .btn-secondary {
   background-color: var(--secondary-color);
   color: var(--secondary-text-color);
+}
+.item-description[data-v-879009ba] img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-top: 10px;
 }
 </style>

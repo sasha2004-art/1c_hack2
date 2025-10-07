@@ -63,8 +63,9 @@ def create_user_list(db: Session, list_data: schemas.ListCreate, user_id: int) -
     db.refresh(db_list)
     return db_list
 
-def get_public_lists(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.List).filter(models.List.privacy_level == models.PrivacyLevel.PUBLIC).offset(skip).limit(limit).all()
+def get_public_lists(db: Session):
+    """Получить все публичные списки без ограничений по пропуску и лимиту."""
+    return db.query(models.List).filter(models.List.privacy_level == models.PrivacyLevel.PUBLIC).all()
 
 def update_list(db: Session, db_list: models.List, list_data: schemas.ListUpdate) -> models.List:
     """Обновить существующий список."""
@@ -111,3 +112,34 @@ def delete_item(db: Session, db_item: models.Item):
     db.delete(db_item)
     db.commit()
     return db_item
+
+# --- CRUD для Бронирований ---
+
+def create_reservation(db: Session, item_id: int, user_id: int) -> models.Reservation:
+    """Создать новое бронирование для элемента."""
+    db_reservation = models.Reservation(item_id=item_id, user_id=user_id)
+    db.add(db_reservation)
+    db.commit()
+    db.refresh(db_reservation)
+    return db_reservation
+
+def get_reservation_by_item_and_user(db: Session, item_id: int, user_id: int) -> Optional[models.Reservation]:
+    """Получить бронирование по ID элемента и ID пользователя."""
+    return db.query(models.Reservation).filter(
+        models.Reservation.item_id == item_id,
+        models.Reservation.user_id == user_id
+    ).first()
+
+def get_reservation(db: Session, reservation_id: int) -> Optional[models.Reservation]:
+    """Получить бронирование по ID бронирования."""
+    return db.query(models.Reservation).filter(models.Reservation.id == reservation_id).first()
+
+def get_reservation_by_item_id(db: Session, item_id: int) -> Optional[models.Reservation]:
+    """Получить бронирование по ID элемента."""
+    return db.query(models.Reservation).filter(models.Reservation.item_id == item_id).first()
+
+def delete_reservation(db: Session, db_reservation: models.Reservation):
+    """Удалить бронирование."""
+    db.delete(db_reservation)
+    db.commit()
+    return db_reservation

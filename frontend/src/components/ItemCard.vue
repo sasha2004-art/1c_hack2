@@ -3,26 +3,66 @@
     <div class="item-header">
       <h3>{{ item.title }}</h3>
       <div class="item-actions">
-        <button @click="$emit('edit', item)" class="btn btn-edit">Редактировать</button>
-        <button @click="$emit('delete', item.id)" class="btn btn-delete">Удалить</button>
+        <template v-if="!isPublicView || (isPublicView && isOwner)">
+          <button @click="$emit('edit', item)" class="btn btn-edit">Редактировать</button>
+          <button @click="$emit('delete', item.id)" class="btn btn-delete">Удалить</button>
+        </template>
+        <template v-if="isPublicView && !isOwner">
+          <button 
+            v-if="!item.is_reserved"
+            @click="handleReserve(item.id)"
+            class="btn btn-reserve"
+          >
+            Забронировать
+          </button>
+          <button 
+            v-else
+            @click="handleUnreserve(item.id)"
+            class="btn btn-unreserve"
+          >
+            Отменить бронирование
+          </button>
+        </template>
       </div>
     </div>
     <div class="item-content" v-if="item.description" v-html="item.description"></div>
-    <div class="item-meta" v-if="item.created_at">
+    <div class="item-meta">
+      <span v-if="item.is_reserved && isPublicView && !isOwner" class="reserved-status">Забронировано</span>
       <small>Создано: {{ formatDate(item.created_at) }}</small>
     </div>
   </div>
 </template>
 
 <script setup>
-import { defineProps } from 'vue';
+import { defineProps, defineEmits } from 'vue';
+import { useListsStore } from '../store/lists';
 
-defineProps({
+const listsStore = useListsStore();
+
+const props = defineProps({
   item: {
     type: Object,
     required: true
+  },
+  isPublicView: {
+    type: Boolean,
+    default: false
+  },
+  isOwner: {
+    type: Boolean,
+    default: false
   }
 });
+
+const emit = defineEmits(['edit', 'delete']);
+
+const handleReserve = async (itemId) => {
+  await listsStore.reserveItem(itemId);
+};
+
+const handleUnreserve = async (itemId) => {
+  await listsStore.unreserveItem(itemId);
+};
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);
@@ -92,6 +132,25 @@ h3 {
 .btn-delete {
   background-color: var(--delete-color);
   color: var(--delete-text-color);
+}
+
+.btn-reserve {
+  background-color: var(--reserve-color, #28a745); /* Зеленая кнопка */
+  color: var(--reserve-text-color, #fff);
+}
+
+.btn-unreserve {
+  background-color: var(--unreserve-color, #ffc107); /* Желтая кнопка */
+  color: var(--unreserve-text-color, #fff);
+}
+
+.reserved-status {
+  background-color: var(--reserved-status-bg-color, #007bff); /* Синий фон */
+  color: var(--reserved-status-text-color, #fff);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8em;
+  margin-right: 10px;
 }
 
 .item-content {

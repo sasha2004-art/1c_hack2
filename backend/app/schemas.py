@@ -49,6 +49,7 @@ class ItemRead(ItemBase):
     list_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    is_reserved: bool = False # Добавляем новое поле
     class Config:
         from_attributes = True
         
@@ -86,6 +87,24 @@ class ListRead(ListBase):
 # Новая схема для публичного отображения
 class ListPublicRead(ListBase):
     id: int
+    public_url_key: UUID # Добавляем публичный ключ
     items: list[ItemRead] = []
+    class Config:
+        from_attributes = True
+
+# --- Схемы для бронирования ---
+
+class ReservationBase(BaseModel):
+    item_id: int
+    user_id: int
+
+class ReservationCreate(BaseModel):
+    # При создании бронирования достаточно передать item_id
+    item_id: int
+
+class ReservationRead(ReservationBase):
+    id: int
+    reservation_date: datetime
+
     class Config:
         from_attributes = True

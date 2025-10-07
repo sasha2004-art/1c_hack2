@@ -58,3 +58,51 @@ def delete_item(
         raise HTTPException(status_code=403, detail="Недостаточно прав")
         
     return crud.delete_item(db=db, db_item=db_item)
+
+@router.post("/items/{item_id}/reserve", response_model=schemas.ReservationRead, status_code=status.HTTP_201_CREATED)
+def reserve_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Забронировать элемент в вишлисте."""
+    db_item = crud.get_item(db, item_id=item_id)
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Элемент не найден")
+    
+    # Проверка, что это вишлист
+    if db_item.list.list_type != models.ListType.WISHLIST:
+        raise HTTPException(status_code=400, detail="Бронирование возможно только для элементов вишлистов")
+
+    # Нельзя бронировать свои собственные предметы
+    if db_item.list.owner_id == current_user.id:
+        raise HTTPException(status_code=403, detail="Вы не можете забронировать свой собственный предмет")
+
+    # Проверка, что предмет еще не забронирован
+    existing_reservation = crud.get_reservation_by_item_and_user(db, item_id=item_id, user_id=current_user.id)
+    if existing_reservation:
+        raise HTTPException(status_code=409, detail="Этот предмет уже забронирован вами")
+    
+    # Создаем бронирование
+    return crud.create_reservation(db=db, item_id=item_id, user_id=current_user.id)
+
+@router.delete("/items/{item_id}/reserve", response_model=schemas.ReservationRead)
+def unreserve_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Отменить бронирование элемента в вишлисте."""
+    db_item = crud.get_item(db, item_id=item_id)
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Элемент не найден")
+
+    # Проверка, что это вишлист
+    if db_item.list.list_type != models.ListType.WISHLIST:
+        raise HTTPException(status_code=400, detail="Отмена бронирования возможна только для элементов вишлистов")
+
+    db_reservation = crud.get_reservation_by_item_and_user(db, item_id=item_id, user_id=current_user.id)
+    if not db_reservation:
+        raise HTTPException(status_code=404, detail="Бронирование не найдено для этого элемента и пользователя")
+
+    return crud.delete_reservation(db=db, db_reservation=db_reservation)

@@ -11,7 +11,7 @@
         <span class="tag tag-privacy">{{ translatedPrivacy }}</span>
       </div>
       <!-- ИЗМЕНЕНИЕ: Добавлены кнопки, которые вызывают события -->
-      <div class="card-actions">
+      <div class="card-actions" v-if="!isPublicFeed">
         <button @click.stop="$emit('edit', list)" class="action-btn" title="Редактировать">✏️</button>
         <button @click.stop="$emit('delete', list.id)" class="action-btn" title="Удалить">🗑️</button>
       </div>
@@ -28,6 +28,10 @@ const props = defineProps({
   list: {
     type: Object,
     required: true
+  },
+  isPublicFeed: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -60,7 +64,11 @@ const translatedPrivacy = computed(() => privacyTranslations[props.list.privacy_
 // --- Конец логики перевода ---
 
 const navigateToList = () => {
-  router.push({ name: 'ListView', params: { id: props.list.id } });
+  if (props.isPublicFeed) {
+    router.push({ name: 'PublicListView', params: { publicKey: props.list.public_url_key } });
+  } else {
+    router.push({ name: 'ListView', params: { id: props.list.id } });
+  }
 };
 </script>
 

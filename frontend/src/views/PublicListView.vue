@@ -11,8 +11,7 @@
       <h2>Элементы списка:</h2>
       <ul v-if="list.items.length > 0" class="items-list">
         <li v-for="item in list.items" :key="item.id">
-          <h3>{{ item.title }}</h3>
-          <p v-if="item.description">{{ item.description }}</p>
+          <ItemCard :item="item" :is-public-view="true" :is-owner="isOwner" /> 
         </li>
       </ul>
       <p v-else>В этом списке пока нет элементов.</p>
@@ -24,8 +23,10 @@
 <script setup>
 import { onMounted, computed } from 'vue';
 import { useListsStore } from '../store/lists';
+import { useAuthStore } from '../store/auth'; // Импортируем useAuthStore
 import { storeToRefs } from 'pinia';
 import { themes } from '../themes.js'; // Импортируем наши темы
+import ItemCard from '../components/ItemCard.vue'; // Импортируем ItemCard
 
 const props = defineProps({
   publicKey: {
@@ -37,6 +38,13 @@ const props = defineProps({
 const listsStore = useListsStore();
 // Используем currentList, так как он будет заполнен данными публичного списка
 const { currentList: list, isLoading, error } = storeToRefs(listsStore);
+
+const authStore = useAuthStore(); // Инициализируем authStore
+const { currentUser } = storeToRefs(authStore); // Получаем текущего пользователя
+
+const isOwner = computed(() => {
+  return currentList.value && currentUser.value && currentList.value.owner_id === currentUser.value.id;
+});
 
 onMounted(() => {
   // Вызываем новую функцию из стора

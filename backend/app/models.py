@@ -23,6 +23,7 @@ class User(Base):
     last_name = Column(String, nullable=True)
     
     lists = relationship("List", back_populates="owner", cascade="all, delete-orphan")
+    reservations = relationship("Reservation", back_populates="user", cascade="all, delete-orphan")
 
 
 class ListType(str, enum.Enum):
@@ -87,3 +88,19 @@ class Item(Base):
     
     list_id = Column(Integer, ForeignKey("lists.id"), nullable=False)
     list = relationship("List", back_populates="items")
+    reservations = relationship("Reservation", back_populates="item", cascade="all, delete-orphan")
+
+
+class Reservation(Base):
+    """
+    Модель для бронирования элементов в вишлистах.
+    """
+    __tablename__ = "reservations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    item_id = Column(Integer, ForeignKey("items.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    reservation_date = Column(DateTime(timezone=True), server_default=func.now())
+    
+    item = relationship("Item", back_populates="reservations")
+    user = relationship("User", back_populates="reservations")

@@ -5,6 +5,7 @@ import { apiClient } from './auth'; // Импортируем настроенн
 export const useListsStore = defineStore('lists', () => {
   const lists = ref([]);
   const currentList = ref(null); // Новое состояние для текущего открытого списка
+  const publicLists = ref([]); // Новое состояние для публичных списков
   const isLoading = ref(false);
   const error = ref(null);
 
@@ -50,6 +51,27 @@ export const useListsStore = defineStore('lists', () => {
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось загрузить публичный список.';
       console.error(e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function fetchPublicLists() {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await apiClient.get('/public/feed');
+      console.log('API Response for /public/feed:', response.data);
+      if (Array.isArray(response.data)) {
+        publicLists.value = response.data;
+      } else {
+        console.error('API response data is not an array:', response.data);
+        publicLists.value = []; // Убедимся, что это всегда массив
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось загрузить публичные списки.';
+      console.error('Error fetching public lists:', e);
+      publicLists.value = []; // Убедимся, что это всегда массив при ошибке
     } finally {
       isLoading.value = false;
     }
@@ -141,6 +163,44 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
+  // --- Новые функции для бронирования элементов ---
+
+  async function reserveItem(itemId) {
+    error.value = null;
+    try {
+      const response = await apiClient.post(`/items/${itemId}/reserve`);
+      if (currentList.value) {
+        const itemIndex = currentList.value.items.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+          currentList.value.items[itemIndex].is_reserved = true;
+        }
+      }
+      return response.data; // Возвращаем данные о бронировании, если нужно
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось забронировать элемент.';
+      console.error(e);
+      throw e;
+    }
+  }
+
+  async function unreserveItem(itemId) {
+    error.value = null;
+    try {
+      const response = await apiClient.delete(`/items/${itemId}/reserve`);
+      if (currentList.value) {
+        const itemIndex = currentList.value.items.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+          currentList.value.items[itemIndex].is_reserved = false;
+        }
+      }
+      return response.data; // Возвращаем данные об отмене бронирования, если нужно
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось отменить бронирование.';
+      console.error(e);
+      throw e;
+    }
+  }
+
   return { 
     lists, 
     currentList,
@@ -154,6 +214,10 @@ export const useListsStore = defineStore('lists', () => {
     deleteList,
     addItem,
     updateItem,
-    deleteItem
+    deleteItem,
+    reserveItem, // Экспортируем функцию бронирования
+    unreserveItem, // Экспортируем функцию отмены бронирования
+    fetchPublicLists, // Экспортируем функцию для получения всех публичных списков
+    publicLists // Добавляем publicLists сюда
   };
 });

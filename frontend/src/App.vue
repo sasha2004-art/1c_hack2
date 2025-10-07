@@ -5,6 +5,8 @@
         <router-link to="/" class="nav-logo">Plotix</router-link>
         <!-- (Задача 9.1) Новая ссылка -->
         <router-link to="/friends" class="nav-link">Друзья</router-link>
+        <!-- (Новое) Ссылка на ленту -->
+        <router-link to="/feed" class="nav-link">Лента</router-link>
         <div class="nav-user-info">
           <!-- Добавляем проверку, что user не null -->
           <span v-if="authStore.user">{{ authStore.user.name }}</span>

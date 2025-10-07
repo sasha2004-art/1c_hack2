@@ -140,6 +140,32 @@ def get_visible_lists_by_user(db: Session, profile_owner_id: int, viewer_id: int
 
     return query.all()
 
+def get_friends_lists_for_feed(db: Session, current_user_id: int, skip: int = 0, limit: int = 10) -> TypingList[models.List]:
+    """Получает агрегированные списки от друзей пользователя для ленты, с пагинацией."""
+    friends_lists = []
+    
+    # Получаем всех друзей текущего пользователя
+    friendships = get_all_user_friendships(db, user_id=current_user_id)
+    
+    friend_ids = set()
+    for friendship in friendships:
+        if friendship.status == models.FriendshipStatus.ACCEPTED:
+            if friendship.requester_id == current_user_id:
+                friend_ids.add(friendship.addressee_id)
+            else:
+                friend_ids.add(friendship.requester_id)
+    
+    # Для каждого друга получаем их видимые списки
+    for friend_id in friend_ids:
+        # Используем get_visible_lists_by_user, чтобы учесть приватность
+        lists = get_visible_lists_by_user(db, profile_owner_id=friend_id, viewer_id=current_user_id)
+        friends_lists.extend(lists)
+            
+    # Сортируем списки по дате создания (или другой метрике) и применяем пагинацию
+    friends_lists.sort(key=lambda x: x.created_at, reverse=True)
+    
+    return friends_lists[skip : skip + limit]
+
 def get_list(db: Session, list_id: int) -> Optional[models.List]:
     """Получить один список по его ID с полной информацией."""
     # Используем joinedload для оптимизации запросов к связанным таблицам

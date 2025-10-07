@@ -7,9 +7,8 @@ import os
 from .db.base import engine, get_db
 from . import models
 # Импортируем все роутеры
-from .routers import auth, users, lists, items, public, reservations, interactions, friends
-# (Новое) Импортируем роутер уведомлений
-from .routers import notifications
+from .routers import auth, users, lists, items, public, reservations, interactions, friends, notifications
+from .routers import feed
 
 # Создаем все таблицы в БД, которые унаследованы от Base
 models.Base.metadata.create_all(bind=engine)
@@ -44,6 +43,7 @@ app.include_router(interactions.router)
 app.include_router(friends.router)
 # (Новое) Регистрируем роутер уведомлений
 app.include_router(notifications.router)
+app.include_router(feed.router)
 
 
 @app.get("/")

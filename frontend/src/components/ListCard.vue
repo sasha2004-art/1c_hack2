@@ -24,6 +24,15 @@
         <button @click.stop="$emit('delete', list.id)" class="action-btn" title="Удалить">🗑️</button>
       </div>
     </div>
+    <!-- БЛОК ДЛЯ ОТОБРАЖЕНИЯ АВТОРА СПИСКА -->
+    <div class="card-footer" v-if="list.owner">
+      <div class="author-info">
+        <span>Автор: </span>
+        <router-link :to="{ name: 'UserProfile', params: { userId: list.owner.id } }">
+          {{ list.owner.name }}
+        </router-link>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -175,5 +184,14 @@ const copyPublicLink = () => {
 
 .share-btn {
   font-size: 1.1rem; /* Можно настроить размер иконки */
+}
+
+.author-info {
+  font-size: 0.9rem;
+  color: var(--text-muted-color);
+}
+
+.author-info span {
+  margin-right: 0.2rem;
 }
 </style>

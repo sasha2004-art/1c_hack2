@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 from typing import List as TypingList, Optional
 from uuid import UUID # Импортируем UUID
 from . import models, schemas, security
@@ -372,3 +372,38 @@ def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -
         db.refresh(db_notification)
         return db_notification
     return None
+
+# --- (Этап 11) CRUD для Ленты ---
+def get_friends_feed(db: Session, user_id: int, skip: int = 0, limit: int = 10) -> TypingList[models.List]:
+    """
+    Получает списки от друзей пользователя для ленты новостей.
+    """
+    friendships = db.query(models.Friendship).filter(
+        (models.Friendship.status == models.FriendshipStatus.ACCEPTED) &
+        or_(
+            models.Friendship.requester_id == user_id,
+            models.Friendship.addressee_id == user_id
+        )
+    ).all()
+    if not friendships:
+        return []
+    friend_ids = set()
+    for fs in friendships:
+        if fs.requester_id == user_id:
+            friend_ids.add(fs.addressee_id)
+        else:
+            friend_ids.add(fs.requester_id)
+    lists_query = db.query(models.List).options(
+        joinedload(models.List.owner),
+        joinedload(models.List.items)
+        .joinedload(models.Item.likes)
+    ).filter(
+        models.List.owner_id.in_(friend_ids),
+        or_(
+            models.List.privacy_level == models.PrivacyLevel.PUBLIC,
+            models.List.privacy_level == models.PrivacyLevel.FRIENDS_ONLY
+        )
+    ).order_by(
+        desc(models.List.created_at)
+    ).offset(skip).limit(limit)
+    return lists_query.all()

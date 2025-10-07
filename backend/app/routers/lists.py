@@ -8,6 +8,40 @@ from ..db.base import get_db
 
 router = APIRouter()
 
+# Вспомогательная функция для сборки ответа
+def assemble_list_response(db_list: models.List, current_user_id: int) -> schemas.ListRead:
+    items_response = []
+    for item in db_list.items:
+        likes_count = len(item.likes)
+        is_liked = any(like.user_id == current_user_id for like in item.likes)
+        
+        item_data = schemas.ItemRead(
+            id=item.id,
+            list_id=item.list_id,
+            title=item.title,
+            description=item.description,
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+            likes_count=likes_count,
+            is_liked_by_current_user=is_liked,
+            comments=[schemas.CommentRead.from_orm(c) for c in item.comments]
+        )
+        items_response.append(item_data)
+    
+    return schemas.ListRead(
+        id=db_list.id,
+        owner_id=db_list.owner_id,
+        public_url_key=db_list.public_url_key,
+        title=db_list.title,
+        description=db_list.description,
+        list_type=db_list.list_type,
+        privacy_level=db_list.privacy_level,
+        theme_name=db_list.theme_name,
+        created_at=db_list.created_at,
+        updated_at=db_list.updated_at,
+        items=items_response
+    )
+
 @router.post("/", response_model=schemas.ListRead, status_code=status.HTTP_201_CREATED)
 def create_list(
     list_data: schemas.ListCreate,
@@ -42,7 +76,8 @@ def read_list(
         raise HTTPException(status_code=404, detail="List not found")
     if db_list.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    return db_list
+    
+    return assemble_list_response(db_list, current_user.id)
 
 
 @router.put("/{list_id}", response_model=schemas.ListRead)
@@ -58,7 +93,10 @@ def update_list(
         raise HTTPException(status_code=404, detail="List not found")
     if db_list.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    return crud.update_list(db=db, db_list=db_list, list_data=list_data)
+    
+    updated_list = crud.update_list(db=db, db_list=db_list, list_data=list_data)
+    # Возвращаем обновленные данные с лайками и комментами
+    return assemble_list_response(updated_list, current_user.id)
 
 
 @router.delete("/{list_id}", response_model=schemas.ListRead)
@@ -73,4 +111,7 @@ def delete_list(
         raise HTTPException(status_code=404, detail="List not found")
     if db_list.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    return crud.delete_list(db=db, db_list=db_list)
+    
+    response_data = assemble_list_response(db_list, current_user.id)
+    crud.delete_list(db=db, db_list=db_list)
+    return response_data

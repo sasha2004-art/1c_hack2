@@ -7,7 +7,7 @@ import os
 from .db.base import engine, get_db
 from . import models
 # Импортируем все роутеры
-from .routers import auth, users, lists, items, public, reservations
+from .routers import auth, users, lists, items, public, reservations, interactions
 
 # Создаем все таблицы в БД, которые унаследованы от Base
 models.Base.metadata.create_all(bind=engine)
@@ -36,8 +36,8 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(lists.router, prefix="/lists", tags=["lists"])
 app.include_router(items.router, prefix="", tags=["items"])
 app.include_router(public.router, prefix="/public", tags=["public"])
-# Регистрируем новый роутер для бронирования
 app.include_router(reservations.router)
+app.include_router(interactions.router) # Регистрируем новый роутер
 
 
 @app.get("/")

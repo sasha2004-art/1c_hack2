@@ -18,8 +18,11 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     
     lists = relationship("List", back_populates="owner", cascade="all, delete-orphan")
-    # Связь с бронированиями пользователя
     reservations = relationship("Reservation", back_populates="reserver", cascade="all, delete-orphan")
+    
+    # Новые связи для лайков и комментариев
+    likes = relationship("Like", back_populates="user", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="owner", cascade="all, delete-orphan")
 
 
 class ListType(str, enum.Enum):
@@ -88,6 +91,10 @@ class Item(Base):
     # Связь один-к-одному с бронированием
     reservation = relationship("Reservation", back_populates="item", uselist=False, cascade="all, delete-orphan")
 
+    # Новые связи для лайков и комментариев
+    likes = relationship("Like", back_populates="item", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="item", cascade="all, delete-orphan", order_by="Comment.created_at")
+
 
 # Новая модель для бронирования
 class Reservation(Base):
@@ -105,3 +112,33 @@ class Reservation(Base):
     
     item = relationship("Item", back_populates="reservation")
     reserver = relationship("User", back_populates="reservations")
+
+# --- Новые модели ---
+
+class Like(Base):
+    """
+    Модель лайка для элемента списка.
+    """
+    __tablename__ = "likes"
+
+    item_id = Column(Integer, ForeignKey("items.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    
+    item = relationship("Item", back_populates="likes")
+    user = relationship("User", back_populates="likes")
+
+class Comment(Base):
+    """
+    Модель комментария для элемента списка.
+    """
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    item_id = Column(Integer, ForeignKey("items.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    item = relationship("Item", back_populates="comments")
+    owner = relationship("User", back_populates="comments")

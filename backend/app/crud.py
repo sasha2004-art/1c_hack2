@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List as TypingList, Optional
 from uuid import UUID # Импортируем UUID
 from . import models, schemas, security
@@ -19,13 +19,34 @@ def create_user(db: Session, user: schemas.UserCreate):
 # --- CRUD для Списков ---
 
 def get_list(db: Session, list_id: int) -> Optional[models.List]:
-    """Получить один список по его ID."""
-    return db.query(models.List).filter(models.List.id == list_id).first()
+    """Получить один список по его ID с полной информацией."""
+    # Используем joinedload для оптимизации запросов к связанным таблицам
+    return (
+        db.query(models.List)
+        .options(
+            joinedload(models.List.items)
+            .joinedload(models.Item.comments)
+            .joinedload(models.Comment.owner)
+        )
+        .options(joinedload(models.List.items).joinedload(models.Item.likes))
+        .filter(models.List.id == list_id)
+        .first()
+    )
 
 # Новая функция для получения списка по публичному ключу
 def get_list_by_public_key(db: Session, public_key: UUID) -> Optional[models.List]:
-    """Получить один список по его публичному UUID ключу."""
-    return db.query(models.List).filter(models.List.public_url_key == public_key).first()
+    """Получить один список по его публичному UUID ключу с полной информацией."""
+    return (
+        db.query(models.List)
+        .options(
+            joinedload(models.List.items)
+            .joinedload(models.Item.comments)
+            .joinedload(models.Comment.owner)
+        )
+        .options(joinedload(models.List.items).joinedload(models.Item.likes))
+        .filter(models.List.public_url_key == public_key)
+        .first()
+    )
 
 def get_lists_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> TypingList[models.List]:
     """Получить все списки конкретного пользователя."""
@@ -108,3 +129,42 @@ def delete_reservation(db: Session, db_reservation: models.Reservation):
     db.delete(db_reservation)
     db.commit()
     return db_reservation
+
+# --- CRUD для Лайков ---
+
+def get_like(db: Session, item_id: int, user_id: int) -> Optional[models.Like]:
+    """Получить лайк по ID элемента и ID пользователя."""
+    return db.query(models.Like).filter(models.Like.item_id == item_id, models.Like.user_id == user_id).first()
+
+def add_like(db: Session, item: models.Item, user: models.User) -> models.Like:
+    """Добавить лайк."""
+    db_like = models.Like(item_id=item.id, user_id=user.id)
+    db.add(db_like)
+    db.commit()
+    return db_like
+
+def remove_like(db: Session, db_like: models.Like):
+    """Удалить лайк."""
+    db.delete(db_like)
+    db.commit()
+    return db_like
+
+# --- CRUD для Комментариев ---
+
+def get_comment(db: Session, comment_id: int) -> Optional[models.Comment]:
+    """Получить комментарий по его ID."""
+    return db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+
+def create_comment(db: Session, comment_data: schemas.CommentCreate, item_id: int, user_id: int) -> models.Comment:
+    """Создать новый комментарий."""
+    db_comment = models.Comment(**comment_data.dict(), item_id=item_id, owner_id=user_id)
+    db.add(db_comment)
+    db.commit()
+    db.refresh(db_comment)
+    return db_comment
+
+def delete_comment(db: Session, db_comment: models.Comment):
+    """Удалить комментарий."""
+    db.delete(db_comment)
+    db.commit()
+    return db_comment

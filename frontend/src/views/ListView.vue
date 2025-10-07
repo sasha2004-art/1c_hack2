@@ -1,67 +1,70 @@
 <template>
-  <!-- Состояние 1: Показываем индикатор загрузки -->
-  <div v-if="listStore.isLoading" class="status-indicator">
-    <p>Загрузка списка...</p>
-  </div>
+  <div class="list-view-container">
+    <div v-if="isLoading" class="loading">Загрузка списка...</div>
+    <div v-else-if="currentList" class="list-content">
+      <header class="list-header">
+        <h1>{{ currentList.title }}</h1>
+        <p>{{ currentList.description }}</p>
+        <button @click="showItemModal = true; editingItem = null;">
+          Добавить элемент
+        </button>
+      </header>
 
-  <!-- Состояние 2: Показываем ошибку, если она есть -->
-  <div v-else-if="listStore.error" class="status-indicator error">
-     <p>{{ listStore.error }}</p>
-  </div>
-
-  <!-- Состояние 3: Список успешно загружен, показываем контент -->
-  <div v-else-if="listStore.currentList" class="list-view-container">
-    <header class="list-header">
-      <h1>{{ listStore.currentList.title }}</h1>
-      <p v-if="listStore.currentList.description">{{ listStore.currentList.description }}</p>
-      <button @click="isModalVisible = true" class="add-item-btn">Добавить элемент</button>
-    </header>
-
-    <main class="items-grid">
-      <div v-if="listStore.currentList.items.length > 0">
+      <div class="items-grid">
         <ItemCard
-          v-for="item in listStore.currentList.items"
+          v-for="item in currentList.items"
           :key="item.id"
           :item="item"
+          @edit="handleEditItem"
+          @delete="handleDeleteItem"
         />
       </div>
-      <div v-else class="no-items-placeholder">
-        <p>В этом списке пока нет элементов. Нажмите "Добавить элемент", чтобы создать первый.</p>
+      <div v-if="!currentList.items.length" class="no-items">
+        В этом списке пока нет элементов.
       </div>
-    </main>
+    </div>
+    <div v-else class="not-found">
+      Список не найден или у вас нет к нему доступа.
+    </div>
 
-    <!-- Модальное окно для добавления нового элемента.
-         Оно корректно получает ID списка и обрабатывает закрытие. -->
     <ItemFormModal
-      v-if="isModalVisible"
-      :list-id="listStore.currentList.id"
-      @close="isModalVisible = false"
+      v-if="showItemModal"
+      :list-id="currentList.id"
+      :item-to-edit="editingItem"
+      @close="showItemModal = false"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import { useListsStore } from '@/store/lists';
 import ItemCard from '@/components/ItemCard.vue';
 import ItemFormModal from '@/components/ItemFormModal.vue';
 
 const route = useRoute();
-const listStore = useListsStore();
-const isModalVisible = ref(false);
+const listsStore = useListsStore();
+const { currentList, isLoading } = storeToRefs(listsStore);
+
+const showItemModal = ref(false);
+const editingItem = ref(null);
+
+const handleEditItem = (item) => {
+  editingItem.value = item;
+  showItemModal.value = true;
+};
+
+const handleDeleteItem = async (itemId) => {
+  if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
+    await listsStore.deleteItem(itemId);
+  }
+};
 
 onMounted(() => {
   const listId = Number(route.params.id);
-  if (listId) {
-    listStore.fetchListById(listId);
-  }
-});
-
-// Очищаем данные при уходе со страницы, чтобы не показывать старый список при переходе на новый
-onUnmounted(() => {
-  listStore.currentList = null;
-  listStore.error = null;
+  listsStore.fetchListById(listId);
 });
 </script>
 
@@ -69,63 +72,38 @@ onUnmounted(() => {
 .list-view-container {
   max-width: 900px;
   margin: 2rem auto;
-  padding: 2rem;
-  color: var(--text-color);
+  padding: 1rem;
 }
-
 .list-header {
   text-align: center;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 1.5rem;
   margin-bottom: 2rem;
 }
-
 .list-header h1 {
-  font-size: 2.8rem;
-  margin-bottom: 0.5rem;
+    color: var(--text-color);
 }
-
 .list-header p {
-  font-size: 1.1rem;
-  color: var(--text-color-secondary, #6c757d);
-  max-width: 600px;
-  margin: 0 auto 1.5rem auto;
+    color: var(--text-color);
+    opacity: 0.8;
 }
-
-.add-item-btn {
-  background-color: var(--primary-color);
-  color: var(--primary-text-color);
-  border: none;
-  padding: 0.8rem 1.8rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+.list-header button {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    background-color: var(--primary-color);
+    color: var(--primary-text-color);
+    border: none;
+    border-radius: 5px;
 }
-
-.add-item-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+.items-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-
-.no-items-placeholder {
+.loading, .not-found, .no-items {
   text-align: center;
-  padding: 4rem;
-  background-color: var(--card-bg-color);
-  border: 1px dashed var(--border-color);
-  border-radius: 8px;
-  color: var(--text-color-secondary, #6c757d);
-}
-
-.status-indicator {
-  text-align: center;
-  padding: 5rem;
-  color: var(--text-color);
   font-size: 1.2rem;
-}
-
-.status-indicator.error {
-  color: var(--secondary-color, red);
+  color: #888;
+  margin-top: 3rem;
 }
 </style>

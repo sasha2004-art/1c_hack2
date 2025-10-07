@@ -23,12 +23,19 @@ def read_public_list(public_key: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This list is not public")
         
     # Создаем ответ вручную, чтобы добавить поле is_reserved
-    items_with_reservation_status = []
+    items_with_extra_data = []
     for item in db_list.items:
         reservation = crud.get_reservation_by_item_id(db, item_id=item.id)
-        item_data = schemas.ItemPublicRead.from_orm(item)
-        item_data.is_reserved = reservation is not None
-        items_with_reservation_status.append(item_data)
+        
+        item_data = schemas.ItemPublicRead(
+            id=item.id,
+            title=item.title,
+            description=item.description,
+            is_reserved=reservation is not None,
+            likes_count=len(item.likes),
+            comments=[schemas.CommentRead.from_orm(c) for c in item.comments]
+        )
+        items_with_extra_data.append(item_data)
         
     # Собираем финальный объект ответа
     public_list_data = schemas.ListPublicRead(
@@ -38,7 +45,7 @@ def read_public_list(public_key: UUID, db: Session = Depends(get_db)):
         list_type=db_list.list_type,
         privacy_level=db_list.privacy_level,
         theme_name=db_list.theme_name,
-        items=items_with_reservation_status
+        items=items_with_extra_data
     )
         
     return public_list_data

@@ -99,7 +99,8 @@ export const useListsStore = defineStore('lists', () => {
     try {
       const response = await apiClient.post(`/lists/${listId}/items`, itemData);
       if (currentList.value && currentList.value.id === listId) {
-        currentList.value.items.push(response.data);
+        // Перезагружаем список, чтобы получить актуальные данные по лайкам/комментам
+        await fetchListById(listId);
       }
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось создать элемент.';
@@ -139,7 +140,60 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // --- Новые функции для работы с бронированием ---
+  // --- Новые функции для лайков и комментариев ---
+
+  async function toggleLike(itemId) {
+    error.value = null;
+    // Находим элемент в текущем списке
+    const item = currentList.value?.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    try {
+      if (item.is_liked_by_current_user) {
+        // Убираем лайк
+        await apiClient.delete(`/items/${itemId}/like`);
+        item.likes_count--;
+        item.is_liked_by_current_user = false;
+      } else {
+        // Ставим лайк
+        await apiClient.post(`/items/${itemId}/like`);
+        item.likes_count++;
+        item.is_liked_by_current_user = true;
+      }
+    } catch (e) {
+        error.value = e.response?.data?.detail || 'Не удалось обработать лайк.';
+        // Откатываем изменения в UI в случае ошибки
+        await fetchListById(currentList.value.id);
+    }
+  }
+  
+  async function addComment(itemId, commentText) {
+    error.value = null;
+    try {
+      const response = await apiClient.post(`/items/${itemId}/comments`, { text: commentText });
+      const item = currentList.value?.items.find(i => i.id === itemId);
+      if(item) {
+        item.comments.push(response.data);
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось добавить комментарий.';
+      throw e;
+    }
+  }
+
+  async function deleteComment(commentId, itemId) {
+    error.value = null;
+    try {
+      await apiClient.delete(`/comments/${commentId}`);
+      const item = currentList.value?.items.find(i => i.id === itemId);
+      if(item) {
+        item.comments = item.comments.filter(c => c.id !== commentId);
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось удалить комментарий.';
+      throw e;
+    }
+  }
 
   async function fetchUserReservations() {
     error.value = null;
@@ -204,6 +258,10 @@ export const useListsStore = defineStore('lists', () => {
     deleteItem,
     fetchUserReservations, // Экспортируем
     reserveItem,           // Экспортируем
-    unreserveItem          // Экспортируем
+    unreserveItem,         // Экспортируем
+    // Экспортируем новые функции
+    toggleLike,
+    addComment,
+    deleteComment
   };
 });

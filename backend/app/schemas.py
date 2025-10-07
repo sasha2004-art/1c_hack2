@@ -12,9 +12,34 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
+# Упрощенная схема для отображения в комментариях
+class UserInComment(BaseModel):
+    id: int
+    email: EmailStr
+    class Config:
+        from_attributes = True
+
 class UserRead(UserBase):
     id: int
     is_active: bool
+    class Config:
+        from_attributes = True
+
+# --- Схемы для комментариев ---
+
+class CommentBase(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+
+class CommentCreate(CommentBase):
+    pass
+
+class CommentRead(CommentBase):
+    id: int
+    owner_id: int
+    item_id: int
+    created_at: datetime
+    owner: UserInComment # Включаем информацию о владельце
+    
     class Config:
         from_attributes = True
 
@@ -36,6 +61,12 @@ class ItemRead(ItemBase):
     list_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    
+    # Новые поля для лайков и комментов
+    likes_count: int = 0
+    is_liked_by_current_user: bool = False
+    comments: List[CommentRead] = []
+
     class Config:
         from_attributes = True
 
@@ -43,6 +74,11 @@ class ItemRead(ItemBase):
 class ItemPublicRead(ItemBase):
     id: int
     is_reserved: bool = False # По умолчанию не забронировано
+    
+    # Новые поля для лайков и комментов
+    likes_count: int = 0
+    comments: List[CommentRead] = []
+
     class Config:
         from_attributes = True
 

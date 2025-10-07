@@ -1,212 +1,122 @@
 <template>
-  <div class="list-view-container" v-if="!listsStore.isLoading && currentList">
-    <header class="list-header">
-      <h1>{{ currentList.title }}</h1>
-      <p v-if="currentList.description">{{ currentList.description }}</p>
-    </header>
+  <div class="list-view-container public-view">
+    <div v-if="isLoading" class="loading">Загрузка списка...</div>
+    <div v-else-if="currentList" class="list-content">
+      <header class="list-header">
+        <h1>{{ currentList.title }}</h1>
+        <p>{{ currentList.description }}</p>
+      </header>
 
-    <div v-if="currentList.list_type !== 'wishlist' && authStore.token" class="info-banner">
-      Это не вишлист, поэтому функционал бронирования недоступен.
-    </div>
-    
-    <div class="items-grid">
-      <div class="item-card" v-for="item in currentList.items" :key="item.id">
-        <h3>{{ item.title }}</h3>
-        <div class="item-description" v-if="item.description" v-html="item.description"></div>
-        
-        <!-- Блок с кнопками бронирования -->
-        <div class="item-actions" v-if="currentList.list_type === 'wishlist'">
-          <button 
-            v-if="!item.is_reserved" 
-            @click="handleReserve(item.id)" 
-            class="btn btn-primary">
-            🎁 Забронировать
-          </button>
-          <button 
-            v-else-if="isReservedByCurrentUser(item.id)" 
-            @click="handleUnreserve(item.id)" 
-            class="btn btn-secondary">
-            ❌ Снять бронь
-          </button>
-          <button v-else class="btn btn-disabled" disabled>
-            ✅ Забронировано
-          </button>
-        </div>
+      <div class="items-grid">
+        <ItemCard
+          v-for="item in currentList.items"
+          :key="item.id"
+          :item="item"
+          :is-guest="!token"
+          :is-reservable="isReservable"
+          :is-reserved="item.is_reserved"
+          :is-my-reservation="myReservationIds.has(item.id)"
+          @reserve="handleReserve"
+          @unreserve="handleUnreserve"
+        />
+      </div>
+       <div v-if="!currentList.items.length" class="no-items">
+        В этом списке пока нет элементов.
       </div>
     </div>
-  </div>
-  <div v-else-if="listsStore.isLoading" class="loading-indicator">
-    Загрузка...
-  </div>
-  <div v-else class="error-message">
-    <h2>Ошибка</h2>
-    <p>{{ listsStore.error || 'Не удалось найти этот список.' }}</p>
+    <div v-else class="not-found">
+      <p>😕</p>
+      Список не найден, или он является приватным.
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onMounted, computed, onBeforeMount } from 'vue';
+import { useRoute } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import { useListsStore } from '@/store/lists';
 import { useAuthStore } from '@/store/auth';
-import { themes } from '@/themes.js';
+import ItemCard from '@/components/ItemCard.vue';
+import router from '@/router';
 
 const route = useRoute();
-const router = useRouter();
 const listsStore = useListsStore();
 const authStore = useAuthStore();
 
-const currentList = computed(() => listsStore.currentList);
-const userReservations = computed(() => listsStore.userReservations);
+const { currentList, isLoading, userReservations } = storeToRefs(listsStore);
+// Получаем токен из auth store
+const { token } = storeToRefs(authStore);
 
-// Проверяет, забронирован ли элемент ТЕКУЩИМ пользователем
-const isReservedByCurrentUser = (itemId) => {
-  return userReservations.value.some(res => res.item_id === itemId);
-};
+const isReservable = computed(() => {
+  return currentList.value?.list_type === 'wishlist';
+});
 
-const handleReserve = (itemId) => {
-  if (!authStore.token) {
-    // Если пользователь не авторизован, перенаправляем на страницу входа
-    router.push({ name: 'Login' });
+const myReservationIds = computed(() => {
+    return new Set(userReservations.value.map(r => r.item.id));
+});
+
+const handleReserve = async (itemId) => {
+  if (!token.value) {
+    alert('Пожалуйста, войдите или зарегистрируйтесь, чтобы бронировать желания.');
+    router.push('/login');
     return;
   }
-  // ИЗМЕНЕНИЕ: Передаем publicKey из URL
-  listsStore.reserveItem(itemId, route.params.publicKey).catch(err => {
-    alert(`Ошибка: ${listsStore.error}`);
-  });
-};
-
-const handleUnreserve = (itemId) => {
-  // ИЗМЕНЕНИЕ: Передаем publicKey из URL
-  listsStore.unreserveItem(itemId, route.params.publicKey).catch(err => {
-    alert(`Ошибка: ${listsStore.error}`);
-  });
-};
-
-
-const applyTheme = (themeName) => {
-  const theme = themes[themeName] || themes.default;
-  for (const [key, value] of Object.entries(theme.styles)) {
-    document.documentElement.style.setProperty(key, value);
+  try {
+    await listsStore.reserveItem(itemId, route.params.publicKey);
+  } catch (error) {
+    alert(listsStore.error);
   }
 };
 
-onMounted(async () => {
-  const publicKey = route.params.publicKey;
-  await listsStore.fetchPublicListByKey(publicKey);
+const handleUnreserve = async (itemId) => {
+   try {
+    await listsStore.unreserveItem(itemId, route.params.publicKey);
+  } catch (error)
+{
+    alert(listsStore.error);
+  }
+};
 
-  if (currentList.value) {
-    applyTheme(currentList.value.theme_name);
-    // Если пользователь авторизован, загружаем его бронирования
-    if (authStore.token) {
-      await listsStore.fetchUserReservations();
+onBeforeMount(() => {
+    if (token.value) {
+        listsStore.fetchUserReservations();
     }
-  }
+});
+
+onMounted(() => {
+  listsStore.fetchPublicListByKey(route.params.publicKey);
 });
 </script>
 
 <style scoped>
-/* Стили можно взять из ListView.vue или адаптировать */
+.public-view {
+}
 .list-view-container {
   max-width: 900px;
   margin: 2rem auto;
-  padding: 2rem;
-  color: var(--text-color);
+  padding: 1rem;
 }
-
 .list-header {
   text-align: center;
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid var(--border-color);
 }
-
-.list-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+.list-header h1, .list-header p {
+    color: var(--text-color);
 }
-
 .items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-
-.item-card {
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 }
-
-.item-card h3 {
-  margin-top: 0;
-  color: var(--primary-color);
-}
-
-.item-description {
-  flex-grow: 1;
-  margin-bottom: 1rem;
-  word-wrap: break-word;
-}
-
-/* Стили для изображений внутри описания */
-.item-description :deep(img) {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 4px;
-  margin-top: 0.5rem;
-}
-
-.item-actions {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.btn {
-  width: 100%;
-  padding: 0.75rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-}
-
-.btn-primary {
-  background-color: var(--primary-color);
-  color: var(--primary-text-color);
-}
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-secondary {
-  background-color: var(--secondary-color);
-  color: var(--secondary-text-color);
-}
-.btn-secondary:hover {
-  opacity: 0.9;
-}
-
-.btn-disabled {
-  background-color: #ccc;
-  color: #666;
-  cursor: not-allowed;
-}
-
-.info-banner {
-  background-color: var(--edit-color);
-  color: var(--edit-text-color);
-  padding: 1rem;
-  border-radius: 8px;
+.loading, .not-found, .no-items {
   text-align: center;
-  margin-bottom: 2rem;
+  font-size: 1.2rem;
+  color: #888;
+  margin-top: 3rem;
+}
+.not-found p {
+    font-size: 3rem;
+    margin: 0;
 }
 </style>

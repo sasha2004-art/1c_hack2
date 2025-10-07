@@ -1,119 +1,131 @@
 <template>
-  <!-- ИЗМЕНЕНИЕ: Класс list-view-container теперь не имеет жестко заданного фона -->
-  <div class="list-view-container" v-if="!listsStore.isLoading">
-    <div v-if="listsStore.currentList" class="list-content">
-      <div class="list-header">
-        <h1>{{ listsStore.currentList.title }}</h1>
-        <button @click="openAddItemModal" class="btn btn-primary">Добавить элемент</button>
-      </div>
-      <p class="list-description" v-if="listsStore.currentList.description">{{ listsStore.currentList.description }}</p>
+  <!-- Состояние 1: Показываем индикатор загрузки -->
+  <div v-if="listStore.isLoading" class="status-indicator">
+    <p>Загрузка списка...</p>
+  </div>
 
-      <div class="items-container">
-        <p v-if="!listsStore.currentList.items.length">В этом списке пока нет элементов.</p>
-        <ItemCard 
-          v-for="item in listsStore.currentList.items" 
+  <!-- Состояние 2: Показываем ошибку, если она есть -->
+  <div v-else-if="listStore.error" class="status-indicator error">
+     <p>{{ listStore.error }}</p>
+  </div>
+
+  <!-- Состояние 3: Список успешно загружен, показываем контент -->
+  <div v-else-if="listStore.currentList" class="list-view-container">
+    <header class="list-header">
+      <h1>{{ listStore.currentList.title }}</h1>
+      <p v-if="listStore.currentList.description">{{ listStore.currentList.description }}</p>
+      <button @click="isModalVisible = true" class="add-item-btn">Добавить элемент</button>
+    </header>
+
+    <main class="items-grid">
+      <div v-if="listStore.currentList.items.length > 0">
+        <ItemCard
+          v-for="item in listStore.currentList.items"
           :key="item.id"
           :item="item"
-          @edit="openEditItemModal"
-          @delete="handleDeleteItem"
         />
       </div>
-    </div>
-    <div v-else class="error-message">
-      <p>{{ listsStore.error || 'Список не найден или не удалось его загрузить.' }}</p>
-      <router-link to="/">Вернуться на главную</router-link>
-    </div>
+      <div v-else class="no-items-placeholder">
+        <p>В этом списке пока нет элементов. Нажмите "Добавить элемент", чтобы создать первый.</p>
+      </div>
+    </main>
 
+    <!-- Модальное окно для добавления нового элемента.
+         Оно корректно получает ID списка и обрабатывает закрытие. -->
     <ItemFormModal
-      :show="isModalVisible"
-      :item="currentItem"
-      @close="closeModal"
-      @save="handleSaveItem"
+      v-if="isModalVisible"
+      :list-id="listStore.currentList.id"
+      @close="isModalVisible = false"
     />
-  </div>
-  <div v-else class="loading-spinner">
-    <p>Загрузка списка...</p>
   </div>
 </template>
 
 <script setup>
-// Скриптовая часть остается без изменений
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useListsStore } from '../store/lists';
-import ItemCard from '../components/ItemCard.vue';
-import ItemFormModal from '../components/ItemFormModal.vue';
+import { useListsStore } from '@/store/lists';
+import ItemCard from '@/components/ItemCard.vue';
+import ItemFormModal from '@/components/ItemFormModal.vue';
 
 const route = useRoute();
-const listsStore = useListsStore();
+const listStore = useListsStore();
 const isModalVisible = ref(false);
-const currentItem = ref(null);
-const listId = computed(() => parseInt(route.params.id));
 
 onMounted(() => {
-  listsStore.fetchListById(listId.value);
+  const listId = Number(route.params.id);
+  if (listId) {
+    listStore.fetchListById(listId);
+  }
 });
 
-const openAddItemModal = () => { currentItem.value = null; isModalVisible.value = true; };
-const openEditItemModal = (item) => { currentItem.value = item; isModalVisible.value = true; };
-const closeModal = () => { isModalVisible.value = false; currentItem.value = null; };
-const handleSaveItem = async (itemData) => {
-  try {
-    if (itemData.id) { await listsStore.updateItem(itemData.id, itemData); } 
-    else { await listsStore.addItem(listId.value, itemData); }
-  } catch (error) { console.error("Ошибка при сохранении элемента:", error); }
-};
-const handleDeleteItem = async (itemId) => {
-  if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
-    try { await listsStore.deleteItem(itemId); }
-    catch (error) { console.error("Ошибка при удалении элемента:", error); }
-  }
-};
+// Очищаем данные при уходе со страницы, чтобы не показывать старый список при переходе на новый
+onUnmounted(() => {
+  listStore.currentList = null;
+  listStore.error = null;
+});
 </script>
 
 <style scoped>
 .list-view-container {
   max-width: 900px;
   margin: 2rem auto;
-}
-
-/* ИЗМЕНЕНИЕ: Основной блок контента теперь использует переменные темы */
-.list-content {
-  padding: 2.5rem;
-  background-color: var(--card-bg-color); /* Фон из темы */
-  color: var(--text-color); /* Текст из темы */
-  border: 1px solid var(--border-color); /* Граница из темы */
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 2rem;
+  color: var(--text-color);
 }
 
 .list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  text-align: center;
   border-bottom: 2px solid var(--border-color);
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-}
-
-h1 { margin: 0; }
-
-.list-description {
-  opacity: 0.9;
+  padding-bottom: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.items-container {
-  margin-top: 2rem;
+.list-header h1 {
+  font-size: 2.8rem;
+  margin-bottom: 0.5rem;
 }
 
-.loading-spinner, .error-message {
+.list-header p {
+  font-size: 1.1rem;
+  color: var(--text-color-secondary, #6c757d);
+  max-width: 600px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.add-item-btn {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
+  border: none;
+  padding: 0.8rem 1.8rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.add-item-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.no-items-placeholder {
   text-align: center;
-  margin-top: 4rem;
+  padding: 4rem;
+  background-color: var(--card-bg-color);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-color-secondary, #6c757d);
+}
+
+.status-indicator {
+  text-align: center;
+  padding: 5rem;
+  color: var(--text-color);
   font-size: 1.2rem;
 }
 
-.error-message a {
-  color: var(--primary-color);
+.status-indicator.error {
+  color: var(--secondary-color, red);
 }
 </style>

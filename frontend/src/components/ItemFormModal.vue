@@ -1,130 +1,192 @@
 <template>
-  <div class="modal-overlay" v-if="show">
+  <div class="modal-backdrop" @click.self="closeModal">
     <div class="modal-content">
-      <h3 class="modal-title">{{ formTitle }}</h3>
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="title">Название</label>
-          <input id="title" type="text" v-model="formData.title" required>
-        </div>
-        
-        <div class="form-group">
-          <label>Описание</label>
-          <QuillEditor 
-            v-model:content="formData.description" 
-            contentType="html" 
-            theme="snow"
-            placeholder="Добавьте форматированный текст, ссылки и детали..."
-          />
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" @click="close" class="btn btn-cancel">Отмена</button>
-          <button type="submit" class="btn btn-primary">Сохранить</button>
-        </div>
-      </form>
+      <div class="modal-header">
+        <h2>Добавить новый элемент</h2>
+        <button @click="closeModal" class="close-button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form @submit.prevent="handleSubmit">
+          <div class="form-group">
+            <label>Содержимое</label>
+            <!-- Единственное поле ввода - редактор Quill -->
+            <QuillEditor 
+              v-model:content="content"
+              theme="snow"
+              toolbar="full"
+              contentType="html"
+              placeholder="Напишите заголовок (он будет выделен) и описание..."
+            />
+          </div>
+          <div class="modal-footer">
+            <button type="button" @click="closeModal" class="btn-cancel">Отмена</button>
+            <button type="submit" class="btn-submit">Добавить</button>
+          </div>
+          <p v-if="error" class="error-message">{{ error }}</p>
+        </form>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref } from 'vue';
+import { useListsStore } from '@/store/lists';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 const props = defineProps({
-  show: Boolean,
-  item: {
-    type: Object,
-    default: null
+  listId: {
+    type: Number,
+    required: true,
   }
 });
 
-const emit = defineEmits(['close', 'save']);
+const emit = defineEmits(['close']);
+const store = useListsStore();
 
-const formData = ref({
-  id: null,
-  title: '',
-  description: ''
-});
+// Единое состояние для всего контента
+const content = ref('');
+const error = ref(null);
 
-const formTitle = computed(() => props.item ? 'Редактировать элемент' : 'Добавить новый элемент');
-
-watch(() => props.item, (newItem) => {
-  if (newItem) {
-    formData.value = { id: newItem.id, title: newItem.title || '', description: newItem.description || '' };
-  } else {
-    formData.value = { id: null, title: '', description: '' };
-  }
-}, { immediate: true });
-
-const handleSubmit = () => {
-  emit('save', formData.value);
-  close();
+const closeModal = () => {
+  emit('close');
 };
 
-const close = () => {
-  emit('close');
+// Функция для парсинга HTML и извлечения заголовка
+const parseContent = (htmlContent) => {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlContent;
+
+  const heading = tempDiv.querySelector('h1, h2, h3, h4, h5, h6');
+  let title = '';
+  
+  if (heading) {
+    // Ограничиваем длину извлеченного заголовка
+    title = heading.innerText.trim().substring(0, 150);
+    heading.parentNode.removeChild(heading);
+  } else {
+    // Ограничиваем длину заголовка из обычного текста
+    title = tempDiv.innerText.trim().substring(0, 150) || '(Без названия)';
+  }
+
+  const description = tempDiv.innerHTML.trim();
+
+  if (!title && !description) return null;
+
+  return { title, description };
+};
+
+
+const handleSubmit = async () => {
+  error.value = null;
+  const parsedData = parseContent(content.value);
+
+  if (!parsedData) {
+    error.value = 'Пожалуйста, добавьте содержимое.';
+    return;
+  }
+
+  try {
+    await store.addItem(props.listId, parsedData);
+    closeModal();
+  } catch (e) {
+    error.value = store.error || 'Не удалось создать элемент.';
+  }
 };
 </script>
 
 <style scoped>
-/* Стили скопированы из ListFormModal для консистентности и используют CSS переменные */
-.modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.7); display: flex;
-  justify-content: center; align-items: center; z-index: 1000;
-}
-.modal-content {
-  background-color: var(--card-bg-color); color: var(--text-color);
-  padding: 2.5rem; border-radius: 8px; width: 90%; max-width: 600px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 1px solid var(--border-color);
-}
-.modal-title {
-  color: var(--text-color); margin-top: 0; margin-bottom: 2rem;
-  text-align: center; font-size: 1.8rem;
-}
-.form-group { margin-bottom: 1.5rem; }
-.form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-.form-group input[type="text"] {
-  width: 100%; padding: 0.8rem; border: 1px solid var(--border-color);
-  border-radius: 4px; background-color: var(--bg-color);
-  color: var(--text-color); box-sizing: border-box; font-size: 1rem;
-}
-.modal-actions {
-  display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;
-}
-.btn {
-  padding: 0.7rem 1.5rem; border-radius: 5px; cursor: pointer;
-  font-weight: bold; font-size: 1rem; border: 1px solid transparent;
-}
-.btn-primary {
-  background-color: var(--primary-color); color: var(--primary-text-color);
-  border-color: var(--primary-color);
-}
-.btn-cancel {
-  background-color: transparent; color: var(--text-color);
-  border: 1px solid var(--border-color);
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
-/* Стилизация редактора Quill с использованием CSS переменных */
-:deep(.ql-toolbar) {
-  border-color: var(--border-color) !important;
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
+.modal-content {
+  background-color: var(--bg-color, #fff);
+  color: var(--text-color, #333);
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 700px; /* Увеличим ширину для редактора */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
-:deep(.ql-container) {
-  border-color: var(--border-color) !important;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  min-height: 150px;
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color, #eee);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
 }
-:deep(.ql-editor) {
-  color: var(--text-color);
+
+.modal-header h2 {
+  margin: 0;
 }
-:deep(.ql-snow .ql-stroke) {
-    stroke: var(--text-color);
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: var(--text-color, #333);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+/* Стили для Quill Editor */
+.form-group :deep(.ql-editor) {
+  min-height: 200px;
+  background-color: var(--card-bg-color, #fff);
+  color: var(--text-color, #333);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #eee);
+}
+
+.modal-footer button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-submit {
+  background-color: var(--primary-color, #007bff);
+  color: var(--primary-text-color, #fff);
+}
+
+.error-message {
+  color: var(--secondary-color, #dc3545);
+  margin-top: 1rem;
+  text-align: right;
 }
 </style>

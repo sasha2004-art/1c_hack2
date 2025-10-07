@@ -2,7 +2,6 @@ import os
 import subprocess
 
 # --- НАСТРОЙКИ ---
-
 # Имя выходного файла
 OUTPUT_FILENAME = "all_code.txt"
 

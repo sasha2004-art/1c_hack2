@@ -10,14 +10,25 @@
       <div v-if="error" class="error-message">{{ error }}</div>
 
       <div class="items-grid" v-if="list.items && list.items.length > 0">
-        <ItemCard
+        <div
           v-for="item in list.items"
           :key="item.id"
-          :item="item"
-          :list-owner-id="list.owner.id"
-          :is-public="true"
-          @copy-item="openCopyModal"
-        />
+          class="item-wrapper"
+        >
+          <ItemCard
+            :item="item"
+            :is-owner="isOwner"
+          />
+          <div class="public-actions">
+            <button
+              v-if="authStore.token && !isOwner"
+              class="btn btn-primary"
+              @click="openCopyModal(item.id)"
+            >
+              Копировать к себе
+            </button>
+          </div>
+        </div>
       </div>
        <div v-else class="empty-list-message">
         В этом списке пока нет элементов.

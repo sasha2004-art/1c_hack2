@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch } from 'vue';
 import { useListsStore } from '@/store/lists';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
@@ -26,34 +26,56 @@ const title = ref('');
 const description = ref('');
 const errorMessage = ref('');
 
-// Настройки для Quill редактора
 const quillOptions = {
   theme: 'snow',
-  placeholder: 'Добавьте подробное описание...',
+  placeholder: 'Добавьте подробное описание или вставьте ссылку на картинку...',
   modules: {
     toolbar: [
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      ['link', 'image'], // 1. Возвращаем кнопку 'image' в панель инструментов
+      ['link', 'image'],
       ['clean']
-    ]
+    ],
+    clipboard: {
+      matchers: [
+        [Node.TEXT_NODE, (node, delta) => {
+          const text = node.data;
+          // Регулярное выражение теперь может быть более общим, так как проверку будет делать бэкенд
+          const urlRegex = /(https?:\/\/[^\s]+)/i;
+          const match = text.match(urlRegex);
+
+          if (match && text.trim() === match[0]) {
+            const originalUrl = match[0];
+            
+            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // Формируем URL к нашему прокси-эндпоинту
+            // encodeURIComponent обязателен, чтобы URL с параметрами передался корректно!
+            const proxyUrl = `http://localhost:8000/utils/image-proxy?url=${encodeURIComponent(originalUrl)}`;
+
+            // Заменяем вставленный текст на картинку, но с src, указывающим на наш прокси
+            return {
+              ops: [{ insert: { image: proxyUrl } }]
+            };
+          }
+          
+          return delta;
+        }]
+      ]
+    }
   }
 };
 
-
-// Отслеживаем изменения в itemToEdit, чтобы заполнять форму при редактировании
 watch(() => props.itemToEdit, (newItem) => {
   if (newItem) {
     title.value = newItem.title;
     description.value = newItem.description || '';
   } else {
-    // Сбрасываем форму, когда добавляем новый элемент
     title.value = '';
     description.value = '';
   }
 });
 
-// 1. Функция для закрытия модального окна
+
 const closeModal = () => {
   emit('close');
 };
@@ -72,13 +94,11 @@ const handleSubmit = async () => {
 
   try {
     if (props.itemToEdit) {
-      // Обновляем существующий элемент
       await listsStore.updateItem(props.itemToEdit.id, itemData);
     } else {
-      // Добавляем новый элемент
       await listsStore.addItem(props.listId, itemData);
     }
-    closeModal(); // Закрываем окно после успешной операции
+    closeModal();
   } catch (error) {
     errorMessage.value = listsStore.error || 'Произошла ошибка.';
   }
@@ -86,12 +106,11 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <!-- 2. v-if управляет видимостью всего компонента -->
   <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <button class="modal-close" @click="closeModal">&times;</button>
       <h2>{{ itemToEdit ? 'Редактировать желание' : 'Добавить новое желание' }}</h2>
-
+      
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
           <label for="item-title">Название</label>
@@ -103,7 +122,7 @@ const handleSubmit = async () => {
             required
           />
         </div>
-
+        
         <div class="form-group">
           <label for="item-description">Описание</label>
           <QuillEditor
@@ -128,6 +147,7 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
+/* Стили остаются без изменений */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -142,9 +162,8 @@ const handleSubmit = async () => {
 }
 
 .modal-content {
-  /* 3. Устанавливаем сплошной цвет фона, чтобы перекрыть полупрозрачные темы */
   background-color: #ffffff; 
-  color: #333; /* Устанавливаем стандартный цвет текста для лучшей читаемости */
+  color: #333;
   padding: 2rem;
   border-radius: 8px;
   width: 90%;
@@ -161,7 +180,7 @@ const handleSubmit = async () => {
   border: none;
   font-size: 2rem;
   cursor: pointer;
-  color: var(--text-color);
+  color: #333;
   opacity: 0.7;
 }
 .modal-close:hover {
@@ -172,7 +191,7 @@ h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
   text-align: center;
-  color: #4B0082; /* Пример цвета из вашей темы для заголовка */
+  color: #4B0082;
 }
 
 .form-group {
@@ -226,16 +245,15 @@ h2 {
   color: white;
 }
 .error-message {
-  color: var(--secondary-color);
+  color: #dc3545;
   background-color: rgba(220, 53, 69, 0.1);
-  border: 1px solid var(--secondary-color);
+  border: 1px solid #dc3545;
   padding: 10px;
   border-radius: 4px;
   text-align: center;
   margin-top: 1rem;
 }
 
-/* Стили для Quill Editor, чтобы они соответствовали общему виду */
 .form-group :deep(.ql-toolbar) {
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;

@@ -1,265 +1,153 @@
-<!-- frontend/src/components/ItemCard.vue -->
-<template>
+﻿<template>
   <div class="item-card">
     <div class="card-content">
-      <div class="card-header">
-        <h3 class="item-title">{{ item.title }}</h3>
-        <div class="item-actions" v-if="isOwner">
-          <button @click.stop="$emit('edit', item)" class="icon-button edit-button">✏️</button>
-          <button @click.stop="$emit('delete', item.id)" class="icon-button delete-button">🗑️</button>
-        </div>
-      </div>
-      <!-- Используем v-html для безопасной отрисовки HTML из редактора -->
-      <div class="item-description" v-html="item.description"></div>
+      <h3 class="item-title">{{ item.title }}</h3>
+      <div v-if="item.description" class="item-description" v-html="item.description"></div>
       
-      <!-- Изображение элемента -->
-      <div v-if="item.thumbnail_url" class="item-thumbnail-container">
-        <img :src="getFullImageUrl(item.thumbnail_url)" alt="item.title" @click="$emit('open-lightbox', item.image_url)">
+      <!-- Статус бронирования -->
+      <div v-if="isWishlist && item.is_reserved" class="reservation-status reserved">
+        Забронировано
       </div>
     </div>
-    
     <div class="card-footer">
-      <div class="interactions">
-        <LikeButton :item="item" />
-        <div class="comments-info icon-button" @click="toggleComments">
-          <span>💬</span>
-          <span>{{ item.comments.length }}</span>
-        </div>
-      </div>
-      <!-- НОВЫЙ БЛОК: КНОПКИ БРОНИРОВАНИЯ -->
-      <div class="reservation-actions" v-if="isWishlist && isLoggedIn && !isOwner">
-        <button 
-          v-if="!item.is_reserved" 
-          @click="$emit('reserve', item.id)" 
-          class="reserve-button"
-        >
-          Забронировать
-        </button>
-        <button 
-          v-if="item.is_reserved" 
-          @click="$emit('unreserve', item.id)" 
-          class="unreserve-button"
-        >
-          Отменить бронь
-        </button>
-      </div>
-      <div class="reservation-status" v-if="item.is_reserved">
-        <span>Забронировано</span>
-      </div>
-    </div>
+        <!-- Кнопки для публичного просмотра -->
+        <template v-if="isPublicView">
+          <button 
+            v-if="showReserveButton" 
+            @click="$emit('reserve', item.id)"
+            class="btn btn-reserve">
+            Забронировать
+          </button>
+          <button 
+            v-if="showUnreserveButton"
+            @click="$emit('unreserve', item.id)"
+            class="btn btn-unreserve">
+            Снять бронь
+          </button>
+        </template>
+        
+        <!-- Здесь можно будет добавить кнопки для владельца (редактировать/удалить) -->
 
-    <!-- Секция комментариев, которая появляется по клику -->
-    <CommentsSection 
-      v-if="showComments"
-      :item-id="item.id" 
-      :comments="item.comments"
-      :is-public-view="isPublic"
-    />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useAuthStore } from '@/store/auth';
-import LikeButton from './LikeButton.vue'; // Импортируем новый компонент
-import CommentsSection from './CommentsSection.vue';
+import { storeToRefs } from 'pinia';
 
 const props = defineProps({
-  item: {
-    type: Object,
-    required: true
-  },
-  isOwner: {
-    type: Boolean,
-    default: false
-  },
-  isPublic: {
-    type: Boolean,
-    default: false
-  },
-  isLoggedIn: {
-    type: Boolean,
-    default: false
-  },
-  isWishlist: {
-    type: Boolean,
-    default: false
-  }
+  item: { type: Object, required: true },
+  listType: { type: String, required: true },
+  isOwner: { type: Boolean, default: false },
+  isPublicView: { type: Boolean, default: false },
+  isLoggedIn: { type: Boolean, default: false },
 });
 
-defineEmits(['edit', 'delete', 'open-lightbox', 'reserve', 'unreserve']);
+defineEmits(['reserve', 'unreserve']);
 
 const authStore = useAuthStore();
-const showComments = ref(false);
+const { user } = storeToRefs(authStore);
 
-// isOwner теперь приходит как prop
+const isWishlist = computed(() => props.listType === 'wishlist');
 
-const toggleComments = () => {
-  showComments.value = !showComments.value;
-};
+// Условие для показа кнопки "Забронировать"
+const showReserveButton = computed(() => {
+  return props.isLoggedIn && 
+         isWishlist.value && 
+         !props.isOwner && 
+         !props.item.is_reserved;
+});
 
-// Функция для формирования полного URL
-const getFullImageUrl = (relativePath) => {
-  if (!relativePath) return '';
-  // Укажите URL вашего бэкенда. Он не должен меняться.
-  const backendUrl = 'http://localhost:8000';
-  return `${backendUrl}${relativePath}`;
-};
+// Условие для показа кнопки "Снять бронь"
+const showUnreserveButton = computed(() => {
+  // Эта логика требует, чтобы бэкенд отдавал ID того, кто зарезервировал, 
+  // но для простоты пока сделаем на основе данных, которые уже есть.
+  // В идеале, нужно добавить reserver_id в ItemPublicRead
+  return false; // Пока скрываем, т.к. нет данных, кто забронировал
+});
+
 </script>
 
 <style scoped>
 .item-card {
-  background-color: var(--card-bg-color, white);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* Главное свойство для прижатия футера */
-  transition: box-shadow 0.3s;
-  min-height: 150px; /* Минимальная высота, чтобы карточки выглядели ровно */
-}
-.item-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
+.item-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.card-content {
+  padding: 1rem 1.2rem;
 }
 
 .item-title {
+  font-size: 1.2rem;
   margin: 0 0 0.5rem 0;
   color: var(--text-color);
-  word-break: break-word;
 }
 
 .item-description {
-  margin-top: 0.5rem;
-  color: var(--text-color);
-  opacity: 0.9;
-  font-size: 0.9rem;
-  word-wrap: break-word;
+  font-size: 0.95rem;
+  opacity: 0.8;
+  line-height: 1.5;
 }
-/* Стили для контента из Quill редактора */
+/* Стили для v-html */
 .item-description :deep(p) {
-  margin: 0;
+  margin: 0.5em 0;
 }
-.item-description :deep(img) {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  max-height: 250px;
-  object-fit: cover;
-  border-radius: 8px;
-  margin-top: 10px;
+.item-description :deep(ul), .item-description :deep(ol) {
+  padding-left: 1.2em;
 }
-
-.item-thumbnail-container {
-  width: 100%; /* Контейнер занимает всю ширину карточки */
-  margin-top: 15px; /* Отступ сверху от текста */
-  border-radius: 8px; /* Скругляем углы (опционально) */
-  overflow: hidden; /* Скрываем все, что выходит за рамки скругления */
-}
-
-.item-thumbnail-container img {
-  /* --- КЛЮЧЕВЫЕ ПРАВИЛА --- */
-  width: 100%;       /* Изображение растягивается на всю ширину контейнера */
-  height: 200px;     /* Задаем ФИКСИРОВАННУЮ высоту для всех миниатюр */
-  object-fit: cover; /* Это самое важное свойство. Оно масштабирует 
-                         изображение так, чтобы оно полностью покрыло 
-                         контейнер, сохраняя пропорции и обрезая лишнее.
-                         Это предотвращает искажение картинки. */
-  /* ------------------------ */
-
-  display: block; /* Убирает лишние отступы под изображением */
-  cursor: pointer; /* Показывает, что на картинку можно нажать */
-  transition: transform 0.2s ease-in-out; /* Плавный эффект при наведении */
-}
-
-.item-thumbnail-container img:hover {
-  transform: scale(1.05); /* Немного увеличиваем картинку при наведении */
-}
-
-.item-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.icon-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 0;
-}
-.edit-button { color: var(--edit-color); }
-.delete-button { color: var(--secondary-color); }
-
 
 .card-footer {
-  margin-top: 1rem; /* Отступ от контента */
-  padding-top: 0.75rem; /* Отступ внутри футера */
+  padding: 0.8rem 1.2rem;
   border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.interactions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.comments-info {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--text-color);
-}
-
-.reservation-status span {
-  background-color: #e9ecef;
-  color: #495057;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: bold;
-}
-
-.reservation-actions {
   display: flex;
   gap: 0.5rem;
 }
 
-.reserve-button {
-  background-color: #28a745;
-  color: white;
-  border: none;
+.reservation-status {
+  margin-top: 1rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 5px;
+  font-weight: bold;
+  text-align: center;
+}
+.reserved {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.btn {
   padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.reserve-button:hover {
-  background-color: #218838;
-}
-
-.unreserve-button {
-  background-color: #dc3545;
-  color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-weight: bold;
+  transition: opacity 0.2s;
+}
+.btn:hover {
+  opacity: 0.85;
 }
 
-.unreserve-button:hover {
-  background-color: #c82333;
+.btn-reserve {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
+}
+
+.btn-unreserve {
+  background-color: var(--edit-color);
+  color: var(--edit-text-color);
 }
 </style>

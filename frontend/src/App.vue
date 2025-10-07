@@ -1,12 +1,13 @@
 <template>
   <div id="app-wrapper">
-    <header class="app-header" v-if="authStore.token">
+    <header class="app-header" v-if="authStore.user">
       <nav class="nav-container">
         <router-link to="/" class="nav-logo">Plotix</router-link>
         <!-- (Задача 9.1) Новая ссылка -->
         <router-link to="/friends" class="nav-link">Друзья</router-link>
         <div class="nav-user-info">
-          <span v-if="authStore.user">{{ authStore.user.email }}</span>
+          <!-- Добавляем проверку, что user не null -->
+          <span v-if="authStore.user">{{ authStore.user.name }}</span>
           <NotificationBell /> <!-- Наш новый компонент -->
           <button @click="authStore.logout()" class="btn btn-secondary">Выйти</button>
         </div>
@@ -19,7 +20,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue';
+import { watch } from 'vue'; // УДАЛЯЕМ onMounted
 import { useRouter } from 'vue-router'; // ИЗМЕНЕНИЕ: Импортируем useRouter
 import { useAuthStore } from './store/auth';
 import { useListsStore } from './store/lists';
@@ -65,19 +66,23 @@ watch(() => router.currentRoute.value.name, (routeName) => {
   }
 });
 
-// (Новое) Следим за изменением токена (логин/логаут)
-watch(() => authStore.token, (newToken) => {
-  if (newToken) {
-    // Если пользователь вошел, запускаем опрос
-    notificationStore.fetchNotifications(); // Загружаем начальные уведомления
-    websocketService.connect(); // Устанавливаем WebSocket соединение
-  } else {
-    // Если вышел - останавливаем
-    websocketService.disconnect(); // Закрываем соединение
+// Следим за состоянием аутентификации пользователя
+watch(() => authStore.user, (newUser, oldUser) => {
+  if (newUser && !oldUser) {
+    // Пользователь вошел в систему (например, через форму логина)
+    notificationStore.fetchNotifications();
+    websocketService.connect();
+  } else if (!newUser && oldUser) {
+    // Пользователь вышел из системы
+    websocketService.disconnect();
   }
 });
 
+// Применяем тему по умолчанию при старте
+applyTheme('default');
 
+// УДАЛЯЕМ onMounted, так как эта логика теперь в main.js
+/*
 onMounted(() => {
   if (authStore.token && !authStore.user) {
     authStore.fetchUser();
@@ -92,7 +97,7 @@ onMounted(() => {
     websocketService.connect();
   }
 });
-
+*/
 </script>
 
 <style scoped>

@@ -1,8 +1,47 @@
+<template>
+  <div class="item-card">
+    <div v-if="item.thumbnail_url || item.image_url" class="item-image-container">
+      <img :src="proxiedImageUrl" alt="Изображение элемента" @click="isLightboxVisible = true">
+    </div>
+
+    <div class="item-content">
+      <h4 class="item-title">{{ item.title }}</h4>
+      <!-- Используем v-html для корректного отображения форматированного текста из Quill -->
+      <div v-if="item.description" class="item-description" v-html="item.description"></div>
+    </div>
+
+    <div class="item-footer">
+      <LikeButton :item="item" />
+      <div class="comments-section-container">
+        <CommentsSection :item="item" />
+      </div>
+    </div>
+
+    <!-- 
+      ВОТ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ:
+      Блок с кнопками "Изменить" и "Удалить".
+      Он показывается только владельцу списка.
+      При клике на кнопки мы генерируем (emit) события 'edit' и 'delete'.
+    -->
+    <div v-if="isOwner" class="owner-actions">
+      <button @click="emit('edit', item)" class="btn-edit">Изменить</button>
+      <button @click="emit('delete', item.id)" class="btn-delete">Удалить</button>
+    </div>
+
+    <!-- Лайтбокс для просмотра полного изображения -->
+    <Lightbox
+      v-if="isLightboxVisible && item.image_url"
+      :image-url="item.image_url"
+      @close="isLightboxVisible = false"
+    />
+  </div>
+</template>
+
 <script setup>
-import { ref } from 'vue';
-import Lightbox from './Lightbox.vue';
+import { ref, computed } from 'vue';
 import LikeButton from './LikeButton.vue';
 import CommentsSection from './CommentsSection.vue';
+import Lightbox from './Lightbox.vue'; // Предполагаем наличие этого компонента
 
 const props = defineProps({
   item: {
@@ -12,150 +51,107 @@ const props = defineProps({
   isOwner: {
     type: Boolean,
     default: false,
-  },
+  }
 });
 
-const emit = defineEmits(['edit-item']);
+// 1. Объявляем, что этот компонент может генерировать события 'edit' и 'delete'.
+//    Это ОБЯЗАТЕЛЬНО для правильной работы.
+const emit = defineEmits(['edit', 'delete']);
 
 const isLightboxVisible = ref(false);
-const showComments = ref(false);
 
-const openLightbox = () => {
-  if (props.item.image_url) {
-    isLightboxVisible.value = true;
+const proxiedImageUrl = computed(() => {
+  const url = props.item.thumbnail_url || props.item.image_url;
+  if (!url) return '';
+  // Проверяем, не является ли URL уже локальным
+  if (url.startsWith('/')) {
+    return `http://localhost:8000${url}`;
   }
-};
-
-const closeLightbox = () => {
-  isLightboxVisible.value = false;
-};
-
-const handleEditClick = () => {
-  emit('edit-item', props.item);
-};
+  // Для внешних ссылок (Unsplash) используем прокси
+  return `http://localhost:8000/utils/image-proxy?url=${encodeURIComponent(url)}`;
+});
 </script>
-
-<template>
-  <div class="item-card">
-    <div v-if="item.thumbnail_url" class="item-image-container" @click="openLightbox">
-      <img :src="`http://localhost:8000${item.thumbnail_url}`" :alt="item.title" class="item-image" />
-    </div>
-
-    <div class="item-info">
-      <h3>{{ item.title }}</h3>
-      <div class="item-description" v-html="item.description"></div>
-    </div>
-
-    <div class="card-footer">
-      <div class="interactions">
-        <LikeButton :item="item" />
-        <button @click="showComments = !showComments" class="btn-icon" title="Комментарии">
-          💬 {{ item.comments.length }}
-        </button>
-      </div>
-      <button v-if="isOwner" @click="handleEditClick" class="btn-edit">Изменить</button>
-    </div>
-
-    <CommentsSection v-if="showComments" :item-id="item.id" />
-
-    <Lightbox
-      :is-visible="isLightboxVisible"
-      :image-url="`http://localhost:8000${item.image_url}`"
-      @close="closeLightbox"
-    />
-  </div>
-</template>
 
 <style scoped>
 .item-card {
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+  background-color: var(--card-bg-color, white);
+  border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.3s;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: box-shadow 0.3s ease;
 }
+
 .item-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
 .item-image-container {
   width: 100%;
   height: 200px;
-  overflow: hidden;
-  cursor: pointer;
+  background-color: #f0f0f0;
 }
-.item-image {
+
+.item-image-container img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s;
+  cursor: pointer;
 }
-.item-image:hover {
-  transform: scale(1.05);
-}
-.item-info {
-  padding: 1rem;
+
+.item-content {
+  padding: 15px;
   flex-grow: 1;
 }
-.item-info h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
+
+.item-title {
+  margin: 0 0 10px 0;
+  color: var(--text-color);
 }
+
 .item-description {
   font-size: 0.9rem;
   opacity: 0.8;
+  color: var(--text-color);
+  /* Стили для контента из Quill */
+  :deep(p) { margin: 0 0 10px; }
+  :deep(ul), :deep(ol) { padding-left: 20px; }
 }
 
-/* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
-/* Селекторы :deep вынесены из .item-description и записаны как отдельные правила */
-.item-description :deep(p) { 
-  margin-bottom: 0.5em; 
+.item-footer {
+  padding: 10px 15px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
 }
-.item-description :deep(a) { 
-  color: var(--primary-color); 
-}
-.item-description :deep(ul), .item-description :deep(ol) { 
-  padding-left: 1.5em; 
-}
-/* --- КОНЕЦ ИСПРАВЛЕНИЯ --- */
 
+.comments-section-container {
+  margin-top: 10px;
+}
 
-.card-footer {
-  padding: 0.5rem 1rem;
-  border-top: 1px solid var(--border-color);
+.owner-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: rgba(0,0,0,0.02);
+  gap: 10px;
+  padding: 10px 15px;
+  background-color: rgba(0,0,0,0.03);
+  border-top: 1px solid var(--border-color, #e0e0e0);
 }
-.interactions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.btn-edit {
-  background-color: var(--edit-color);
-  color: var(--edit-text-color);
-  border: none;
+
+.btn-edit, .btn-delete {
   padding: 6px 12px;
+  border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: bold;
+  font-size: 0.9rem;
 }
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 5px;
-  border-radius: 50%;
-  line-height: 1;
-  transition: background-color 0.2s;
+
+.btn-edit {
+  background-color: var(--edit-color, #ffc107);
+  color: var(--edit-text-color, #212529);
 }
-.btn-icon:hover {
-  background-color: rgba(0,0,0,0.1);
+
+.btn-delete {
+  background-color: var(--secondary-color, #dc3545);
+  color: var(--secondary-text-color, white);
 }
 </style>

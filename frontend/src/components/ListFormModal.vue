@@ -79,6 +79,8 @@ const listTypeOptions = [
 // ИЗМЕНЕНИЕ: Добавлены переводы для приватности
 const privacyLevelOptions = [
     { value: 'private', text: 'Приватный' },
+    // (Задача 8.1) Добавьте эту опцию
+    { value: 'friends_only', text: 'Только для друзей' },
     { value: 'public', text: 'Публичный' }
 ];
 

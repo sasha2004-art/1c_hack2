@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
-from .models import ListType, PrivacyLevel, ThemeName
+from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus
 
 # --- Схемы для пользователя ---
 
@@ -24,6 +24,51 @@ class UserRead(UserBase):
     is_active: bool
     class Config:
         from_attributes = True
+
+# --- (Задача 3.1) Новые схемы для системы друзей ---
+
+class FriendshipBase(BaseModel):
+    id: int
+    status: FriendshipStatus
+
+    class Config:
+        from_attributes = True
+
+class IncomingRequestRead(FriendshipBase):
+    requester: UserInComment # Кто отправил заявку
+
+class OutgoingRequestRead(FriendshipBase):
+    addressee: UserInComment # Кому отправили заявку
+
+class FriendRead(BaseModel):
+    friend_details: UserInComment
+    friendship_id: int
+
+    class Config:
+        from_attributes = True
+
+class FriendsAndRequestsResponse(BaseModel):
+    friends: List[FriendRead] = []
+    incoming_requests: List[IncomingRequestRead] = []
+    outgoing_requests: List[OutgoingRequestRead] = []
+
+# (Задача 2.1) Новые схемы для страницы профиля
+class PublicListForProfile(BaseModel):
+    """Упрощенная схема списка для отображения в профиле."""
+    id: int
+    title: str
+    list_type: ListType
+    privacy_level: PrivacyLevel
+
+    class Config:
+        from_attributes = True
+
+class UserProfileResponse(BaseModel):
+    """Схема для ответа на запрос профиля пользователя."""
+    user_info: UserInComment
+    public_lists: List[PublicListForProfile]
+    friendship_status: Optional[str] # e.g., "friends", "request_sent", "request_received", "none"
+    friendship_id: Optional[int] = None # ID для отмены/удаления
 
 # --- Схемы для комментариев ---
 

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID # Импортируем тип UUID
@@ -20,9 +20,22 @@ class User(Base):
     lists = relationship("List", back_populates="owner", cascade="all, delete-orphan")
     reservations = relationship("Reservation", back_populates="reserver", cascade="all, delete-orphan")
     
-    # Новые связи для лайков и комментариев
     likes = relationship("Like", back_populates="user", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="owner", cascade="all, delete-orphan")
+    
+    # (Задача 2.2) Новые связи для системы дружбы
+    sent_friend_requests = relationship(
+        "Friendship", 
+        foreign_keys="[Friendship.requester_id]", 
+        back_populates="requester", 
+        cascade="all, delete-orphan"
+    )
+    received_friend_requests = relationship(
+        "Friendship", 
+        foreign_keys="[Friendship.addressee_id]", 
+        back_populates="addressee", 
+        cascade="all, delete-orphan"
+    )
 
 
 class ListType(str, enum.Enum):
@@ -33,7 +46,15 @@ class ListType(str, enum.Enum):
 
 class PrivacyLevel(str, enum.Enum):
     PRIVATE = "private"
+    # (Задача 2.3) Новое значение для приватности
+    FRIENDS_ONLY = "friends_only"
     PUBLIC = "public"
+
+# (Задача 2.1) Новое перечисление для статуса дружбы
+class FriendshipStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
 
 # (Задача 1.1) Создаем Enum для названий тем
 class ThemeName(str, enum.Enum):
@@ -142,3 +163,22 @@ class Comment(Base):
     
     item = relationship("Item", back_populates="comments")
     owner = relationship("User", back_populates="comments")
+
+# (Задача 2.4) Новая модель Friendship
+class Friendship(Base):
+    """
+    Модель, представляющая дружбу или заявку в друзья.
+    """
+    __tablename__ = "friendships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    requester_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    addressee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(Enum(FriendshipStatus), default=FriendshipStatus.PENDING, nullable=False)
+
+    requester = relationship("User", foreign_keys=[requester_id], back_populates="sent_friend_requests")
+    addressee = relationship("User", foreign_keys=[addressee_id], back_populates="received_friend_requests")
+
+    __table_args__ = (
+        UniqueConstraint('requester_id', 'addressee_id', name='unique_friendship_request'),
+    )

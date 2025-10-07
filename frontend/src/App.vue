@@ -3,6 +3,8 @@
     <header class="app-header" v-if="authStore.token">
       <nav class="nav-container">
         <router-link to="/" class="nav-logo">Plotix</router-link>
+        <!-- (Задача 9.1) Новая ссылка -->
+        <router-link to="/friends" class="nav-link">Друзья</router-link>
         <div class="nav-user-info">
           <span v-if="authStore.user">{{ authStore.user.email }}</span>
           <button @click="authStore.logout()" class="btn btn-secondary">Выйти</button>

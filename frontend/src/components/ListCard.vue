@@ -60,7 +60,8 @@ const typeTranslations = {
 
 const privacyTranslations = {
   private: 'Приватный',
-  public: 'Публичный'
+  public: 'Публичный',
+  friends_only: 'Только для друзей'
 };
 
 const translatedType = computed(() => typeTranslations[props.list.list_type] || props.list.list_type);

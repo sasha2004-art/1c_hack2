@@ -74,9 +74,22 @@ def read_list(
     db_list = crud.get_list(db, list_id=list_id)
     if db_list is None:
         raise HTTPException(status_code=404, detail="List not found")
-    if db_list.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
     
+    # --- (Задача 6.1) Новая логика проверки доступа ---
+    is_owner = db_list.owner_id == current_user.id
+    
+    if is_owner:
+        return assemble_list_response(db_list, current_user.id)
+
+    if db_list.privacy_level == models.PrivacyLevel.PRIVATE:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    if db_list.privacy_level == models.PrivacyLevel.FRIENDS_ONLY:
+        are_friends = crud.are_users_friends(db, user1_id=current_user.id, user2_id=db_list.owner_id)
+        if not are_friends:
+            raise HTTPException(status_code=403, detail="This list is only available to friends.")
+
+    # Если дошли сюда, значит список публичный или для друзей (и мы друг)
     return assemble_list_response(db_list, current_user.id)
 
 

@@ -7,12 +7,31 @@ import Register from '../views/Register.vue'
 import ListView from '../views/ListView.vue'
 // Импортируем новый компонент публичной страницы
 import PublicListView from '../views/PublicListView.vue'
+// (Задача 7.1) Импортируем новый компонент
+import FriendsView from '../views/FriendsView.vue'
+// (Задача 8.1) Импортируем новый компонент
+import UserProfileView from '../views/UserProfileView.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home,
+    meta: { requiresAuth: true }
+  },
+  // (Задача 7.2) Новый маршрут для страницы друзей
+  {
+    path: '/friends',
+    name: 'Friends',
+    component: FriendsView,
+    meta: { requiresAuth: true }
+  },
+  // (Задача 8.2) Новый маршрут для профиля
+  {
+    path: '/users/:userId',
+    name: 'UserProfile',
+    component: UserProfileView,
+    props: true,
     meta: { requiresAuth: true }
   },
   // Новый маршрут для просмотра конкретного списка

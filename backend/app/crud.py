@@ -1,12 +1,24 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List as TypingList, Optional
 from uuid import UUID # Импортируем UUID
 from . import models, schemas, security
 
 # --- CRUD для Пользователей ---
 
+def get_user(db: Session, user_id: int):
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
+
+# (Задача 1.1) Новая функция для поиска
+def search_users_by_email(db: Session, email_query: str, current_user_id: int, limit: int = 10):
+    """Ищет пользователей по частичному совпадению email, исключая текущего пользователя."""
+    return db.query(models.User).filter(
+        models.User.email.ilike(f"%{email_query}%"),
+        models.User.id != current_user_id
+    ).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = security.get_password_hash(user.password)
@@ -16,7 +28,91 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
+# --- (Задача 4.1) CRUD для Друзей ---
+
+def get_friendship_request(db: Session, request_id: int) -> Optional[models.Friendship]:
+    """Получить заявку в друзья по ее ID."""
+    return db.query(models.Friendship).filter(models.Friendship.id == request_id).first()
+
+def get_existing_friendship(db: Session, user1_id: int, user2_id: int) -> Optional[models.Friendship]:
+    """Проверить, существует ли какая-либо связь (заявка или дружба) между двумя пользователями."""
+    return db.query(models.Friendship).filter(
+        or_(
+            (models.Friendship.requester_id == user1_id) & (models.Friendship.addressee_id == user2_id),
+            (models.Friendship.requester_id == user2_id) & (models.Friendship.addressee_id == user1_id)
+        )
+    ).first()
+
+def create_friend_request(db: Session, requester_id: int, addressee_id: int) -> models.Friendship:
+    """Создать новую заявку в друзья."""
+    db_request = models.Friendship(requester_id=requester_id, addressee_id=addressee_id, status=models.FriendshipStatus.PENDING)
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+    return db_request
+
+def update_friendship_status(db: Session, db_friendship: models.Friendship, status: models.FriendshipStatus) -> models.Friendship:
+    """Обновить статус заявки (принять/отклонить)."""
+    db_friendship.status = status
+    db.commit()
+    db.refresh(db_friendship)
+    return db_friendship
+
+def delete_friendship(db: Session, db_friendship: models.Friendship):
+    """Удалить дружбу или заявку."""
+    db.delete(db_friendship)
+    db.commit()
+
+def are_users_friends(db: Session, user1_id: int, user2_id: int) -> bool:
+    """Проверяет, являются ли два пользователя друзьями (статус ACCEPTED)."""
+    friendship = db.query(models.Friendship).filter(
+        (models.Friendship.status == models.FriendshipStatus.ACCEPTED) &
+        or_(
+            (models.Friendship.requester_id == user1_id) & (models.Friendship.addressee_id == user2_id),
+            (models.Friendship.requester_id == user2_id) & (models.Friendship.addressee_id == user1_id)
+        )
+    ).first()
+    return friendship is not None
+
+def get_all_user_friendships(db: Session, user_id: int) -> TypingList[models.Friendship]:
+    """Получить все связи (друзья, заявки) для пользователя."""
+    return db.query(models.Friendship).options(
+        joinedload(models.Friendship.requester),
+        joinedload(models.Friendship.addressee)
+    ).filter(
+        or_(
+            models.Friendship.requester_id == user_id,
+            models.Friendship.addressee_id == user_id
+        )
+    ).all()
+
 # --- CRUD для Списков ---
+
+# ЗАМЕНЯЕМ get_public_lists_by_user НА ЭТУ ФУНКЦИЮ
+def get_visible_lists_by_user(db: Session, profile_owner_id: int, viewer_id: int):
+    """
+    Получает списки пользователя, видимые для конкретного зрителя.
+    - Если зритель и владелец - друзья, показывает public и friends_only списки.
+    - Иначе, показывает только public списки.
+    """
+    # Сначала проверяем, являются ли пользователи друзьями
+    are_friends = are_users_friends(db, user1_id=profile_owner_id, user2_id=viewer_id)
+
+    query = db.query(models.List).filter(models.List.owner_id == profile_owner_id)
+
+    if are_friends:
+        # Если друзья, то разрешаем смотреть 'public' и 'friends_only'
+        query = query.filter(
+            or_(
+                models.List.privacy_level == models.PrivacyLevel.PUBLIC,
+                models.List.privacy_level == models.PrivacyLevel.FRIENDS_ONLY
+            )
+        )
+    else:
+        # Если не друзья, то только 'public'
+        query = query.filter(models.List.privacy_level == models.PrivacyLevel.PUBLIC)
+
+    return query.all()
 
 def get_list(db: Session, list_id: int) -> Optional[models.List]:
     """Получить один список по его ID с полной информацией."""

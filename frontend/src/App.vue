@@ -132,7 +132,6 @@ onMounted(() => {
 .nav-logo {
   font-size: 1.5rem;
   font-weight: bold;
-  /* ИЗМЕНЕНИЕ: Цвет логотипа теперь берется из CSS переменной */
   color: var(--text-color, #333);
 }
 

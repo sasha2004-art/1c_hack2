@@ -43,7 +43,6 @@ export const useListsStore = defineStore('lists', () => {
     isLoading.value = true;
     error.value = null;
     currentList.value = null; 
-    userReservations.value = []; // Сбрасываем бронирования при загрузке нового списка
     try {
       const response = await apiClient.get(`/public/lists/${publicKey}`);
       currentList.value = response.data;
@@ -106,6 +105,30 @@ export const useListsStore = defineStore('lists', () => {
       error.value = e.response?.data?.detail || 'Не удалось создать элемент.';
       console.error(e);
       throw e; // Пробрасываем ошибку дальше для обработки в компоненте
+    }
+  }
+
+  async function uploadItemImage(itemId, file) {
+    error.value = null;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiClient.post(`/items/${itemId}/upload-image`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      // Обновляем элемент в текущем списке
+      if (currentList.value) {
+        const index = currentList.value.items.findIndex(i => i.id === itemId);
+        if (index !== -1) {
+          currentList.value.items[index] = response.data;
+        }
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось загрузить изображение.';
+      console.error(e);
+      throw e;
     }
   }
 

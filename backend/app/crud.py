@@ -143,6 +143,7 @@ def get_list_by_public_key(db: Session, public_key: UUID) -> Optional[models.Lis
     """Получить один список по его публичному UUID ключу с полной информацией."""
     return (
         db.query(models.List)
+        .options(joinedload(models.List.owner)) # <--- ДОБАВЛЕНА ЭТА СТРОКА
         .options(
             joinedload(models.List.items)
             .joinedload(models.Item.comments)

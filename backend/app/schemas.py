@@ -110,6 +110,8 @@ class CommentRead(CommentBase):
 class ItemBase(BaseModel):
     title: str
     description: Optional[str] = None
+    image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
 
 class ItemCreate(ItemBase):
     pass
@@ -117,6 +119,8 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
 
 class ItemRead(ItemBase):
     id: int
@@ -176,6 +180,7 @@ class ListRead(ListBase):
 # Новая схема для публичного отображения списка с публичными элементами
 class ListPublicRead(ListBase):
     id: int
+    owner: UserInComment  # <--- ДОБАВЛЕНО ЭТО ПОЛЕ
     items: List[ItemPublicRead] = []
     class Config:
         from_attributes = True

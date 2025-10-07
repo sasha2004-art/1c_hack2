@@ -112,6 +112,10 @@ class Item(Base):
     # ИЗМЕНЕНИЕ: Поле description теперь имеет тип Text для хранения HTML
     description = Column(Text, nullable=True) 
     
+    # Новые поля для изображений
+    image_url = Column(String, nullable=True)  # Путь к полному изображению
+    thumbnail_url = Column(String, nullable=True)  # Путь к миниатюре
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     

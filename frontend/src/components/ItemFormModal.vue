@@ -18,6 +18,10 @@
               placeholder="Напишите заголовок (он будет выделен) и описание..."
             />
           </div>
+          <div class="form-group">
+            <label for="image">Изображение (опционально)</label>
+            <input type="file" id="image" accept="image/*" @change="handleFileChange" class="file-input">
+          </div>
           <div class="modal-footer">
             <button type="button" @click="closeModal" class="btn-cancel">Отмена</button>
             <button type="submit" class="btn-submit">Добавить</button>
@@ -48,9 +52,14 @@ const store = useListsStore();
 // Единое состояние для всего контента
 const content = ref('');
 const error = ref(null);
+const selectedFile = ref(null);
 
 const closeModal = () => {
   emit('close');
+};
+
+const handleFileChange = (event) => {
+  selectedFile.value = event.target.files[0];
 };
 
 // Функция для парсинга HTML и извлечения заголовка
@@ -88,7 +97,13 @@ const handleSubmit = async () => {
   }
 
   try {
-    await store.addItem(props.listId, parsedData);
+    const newItem = await store.addItem(props.listId, parsedData);
+    
+    // Если файл выбран, загружаем его
+    if (selectedFile.value) {
+      await store.uploadItemImage(newItem.id, selectedFile.value);
+    }
+    
     closeModal();
   } catch (e) {
     error.value = store.error || 'Не удалось создать элемент.';
@@ -149,6 +164,15 @@ const handleSubmit = async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
+}
+
+.file-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background-color: var(--card-bg-color, #fff);
+  color: var(--text-color, #333);
 }
 
 /* Стили для Quill Editor */

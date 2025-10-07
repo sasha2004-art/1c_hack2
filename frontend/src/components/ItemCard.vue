@@ -11,6 +11,11 @@
       </div>
       <!-- Используем v-html для безопасной отрисовки HTML из редактора -->
       <div class="item-description" v-html="item.description"></div>
+      
+      <!-- Изображение элемента -->
+      <div v-if="item.thumbnail_url" class="item-thumbnail-container">
+        <img :src="getFullImageUrl(item.thumbnail_url)" alt="item.title" @click="$emit('open-lightbox', item.image_url)">
+      </div>
     </div>
     
     <div class="card-footer">
@@ -57,7 +62,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(['edit', 'delete']);
+defineEmits(['edit', 'delete', 'open-lightbox']);
 
 const authStore = useAuthStore();
 const showComments = ref(false);
@@ -66,6 +71,14 @@ const isOwner = computed(() => authStore.user && authStore.user.id === props.lis
 
 const toggleComments = () => {
   showComments.value = !showComments.value;
+};
+
+// Функция для формирования полного URL
+const getFullImageUrl = (relativePath) => {
+  if (!relativePath) return '';
+  // Укажите URL вашего бэкенда. Он не должен меняться.
+  const backendUrl = 'http://localhost:8000';
+  return `${backendUrl}${relativePath}`;
 };
 </script>
 
@@ -109,9 +122,39 @@ const toggleComments = () => {
 .item-description :deep(p) {
   margin: 0;
 }
-.item-description :deep(ul), .item-description :deep(ol) {
-  padding-left: 20px;
-  margin-bottom: 0;
+.item-description :deep(img) {
+  max-width: 100%;
+  height: auto;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.item-thumbnail-container {
+  width: 100%; /* Контейнер занимает всю ширину карточки */
+  margin-top: 15px; /* Отступ сверху от текста */
+  border-radius: 8px; /* Скругляем углы (опционально) */
+  overflow: hidden; /* Скрываем все, что выходит за рамки скругления */
+}
+
+.item-thumbnail-container img {
+  /* --- КЛЮЧЕВЫЕ ПРАВИЛА --- */
+  width: 100%;       /* Изображение растягивается на всю ширину контейнера */
+  height: 200px;     /* Задаем ФИКСИРОВАННУЮ высоту для всех миниатюр */
+  object-fit: cover; /* Это самое важное свойство. Оно масштабирует 
+                         изображение так, чтобы оно полностью покрыло 
+                         контейнер, сохраняя пропорции и обрезая лишнее.
+                         Это предотвращает искажение картинки. */
+  /* ------------------------ */
+
+  display: block; /* Убирает лишние отступы под изображением */
+  cursor: pointer; /* Показывает, что на картинку можно нажать */
+  transition: transform 0.2s ease-in-out; /* Плавный эффект при наведении */
+}
+
+.item-thumbnail-container img:hover {
+  transform: scale(1.05); /* Немного увеличиваем картинку при наведении */
 }
 
 .item-actions {

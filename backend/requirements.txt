@@ -10,6 +10,7 @@ email-validator
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+Pillow
 
 # Зависимости для тестирования
 pytest

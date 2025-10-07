@@ -29,6 +29,7 @@
         :is-public="false"
         @edit="openItemModal(item)"
         @delete="handleDeleteItem(item.id)"
+        @open-lightbox="openLightbox"
         :id="`item-${item.id}`"
       />
     </div>
@@ -46,6 +47,12 @@
       @close="closeSettingsModal"
     />
 
+    <Lightbox 
+      :visible="isLightboxVisible" 
+      :image-url="selectedImageUrl" 
+      @close="isLightboxVisible = false" 
+    />
+
   </div>
   <div v-else-if="isLoading" class="loading-spinner">Загрузка списка...</div>
   <div v-else class="error-message">{{ error }}</div>
@@ -59,6 +66,7 @@ import { storeToRefs } from 'pinia';
 import ItemCard from '@/components/ItemCard.vue';
 import ItemFormModal from '@/components/ItemFormModal.vue';
 import ListFormModal from '@/components/ListFormModal.vue';
+import Lightbox from '@/components/Lightbox.vue';
 
 const props = defineProps({
   id: {
@@ -74,6 +82,8 @@ const { currentList, isLoading, error } = storeToRefs(listsStore);
 const isItemModalVisible = ref(false);
 const isSettingsModalVisible = ref(false);
 const editingItem = ref(null);
+const isLightboxVisible = ref(false);
+const selectedImageUrl = ref('');
 
 const openItemModal = (item) => {
   editingItem.value = item;
@@ -97,6 +107,12 @@ const handleDeleteItem = async (itemId) => {
   if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
     await listsStore.deleteItem(itemId);
   }
+};
+
+const openLightbox = (imageUrl) => {
+  const backendUrl = 'http://localhost:8000';
+  selectedImageUrl.value = `${backendUrl}${imageUrl}`;
+  isLightboxVisible.value = true;
 };
 
 const scrollToAndHighlightItem = async (hash) => {

@@ -40,6 +40,7 @@ def read_public_list(public_key: UUID, db: Session = Depends(get_db)):
     # Собираем финальный объект ответа
     public_list_data = schemas.ListPublicRead(
         id=db_list.id,
+        owner=db_list.owner, # <--- ДОБАВЛЕНА ЭТА СТРОКА
         title=db_list.title,
         description=db_list.description,
         list_type=db_list.list_type,

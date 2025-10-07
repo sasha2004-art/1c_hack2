@@ -13,6 +13,13 @@ export const useFriendsStore = defineStore('friends', () => {
     const isLoading = ref(false);
     const error = ref(null);
 
+    // --- Вспомогательная функция для обновления профиля, если он открыт ---
+    async function refreshCurrentProfileIfOpen() {
+        if (currentUserProfile.value) {
+            await fetchUserProfile(currentUserProfile.value.user_info.id);
+        }
+    }
+
     async function fetchFriendsAndRequests() {
         isLoading.value = true;
         error.value = null;
@@ -66,7 +73,8 @@ export const useFriendsStore = defineStore('friends', () => {
         error.value = null;
         try {
             await apiClient.post(`/friends/accept/${requestId}`);
-            await fetchFriendsAndRequests(); // Обновляем все списки
+            await fetchFriendsAndRequests(); // Обновляем общий список друзей
+            await refreshCurrentProfileIfOpen(); // <-- ДОБАВЛЕНО: Обновляем открытый профиль
         } catch (e) {
             error.value = 'Не удалось принять заявку.';
             console.error(e);
@@ -78,7 +86,8 @@ export const useFriendsStore = defineStore('friends', () => {
         error.value = null;
         try {
             await apiClient.post(`/friends/decline/${requestId}`);
-            await fetchFriendsAndRequests(); // Обновляем все списки
+            await fetchFriendsAndRequests();
+            await refreshCurrentProfileIfOpen(); // <-- ДОБАВЛЕНО
         } catch (e) {
             error.value = 'Не удалось отклонить заявку.';
             console.error(e);
@@ -90,7 +99,8 @@ export const useFriendsStore = defineStore('friends', () => {
         error.value = null;
         try {
             await apiClient.delete(`/friends/${friendshipId}`);
-            await fetchFriendsAndRequests(); // Обновляем все списки
+            await fetchFriendsAndRequests();
+            await refreshCurrentProfileIfOpen(); // <-- ДОБАВЛЕНО
         } catch (e) {
             error.value = 'Не удалось удалить друга.';
             console.error(e);
@@ -104,9 +114,8 @@ export const useFriendsStore = defineStore('friends', () => {
         try {
             await apiClient.post(`/friends/request/${userId}`);
             // Обновляем данные на странице профиля
-            if (currentUserProfile.value && currentUserProfile.value.user_info.id === userId) {
-                await fetchUserProfile(userId);
-            }
+            // ИЗМЕНЕНИЕ: Просто вызываем нашу новую функцию
+            await refreshCurrentProfileIfOpen();
         } catch (e) {
             error.value = e.response?.data?.detail || 'Не удалось отправить заявку.';
             console.error(e);

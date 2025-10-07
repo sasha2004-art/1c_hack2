@@ -1,130 +1,178 @@
 <template>
-  <div class="profile-container" v-if="profile">
-    <h2>Профиль пользователя: {{ profile.user_info.email }}</h2>
-    
-    <div class="actions">
-      <button 
-        v-if="profile.friendship_status === 'none'" 
-        @click="handleAddFriend" 
-        class="btn btn-primary"
-      >
-        Добавить в друзья
-      </button>
-      <button 
-        v-if="profile.friendship_status === 'request_sent'" 
-        @click="handleCancelRequest" 
-        class="btn btn-secondary"
-      >
-        Отменить заявку
-      </button>
-      <div v-if="profile.friendship_status === 'request_received'" class="request-received">
-        <span>Этот пользователь отправил вам заявку.</span>
-        <router-link to="/friends">Перейти к заявкам</router-link>
-      </div>
-      <button 
-        v-if="profile.friendship_status === 'friends'" 
-        @click="handleRemoveFriend" 
-        class="btn btn-danger"
-      >
-        Удалить из друзей
-      </button>
+  <div class="container">
+    <div v-if="friendsStore.isLoading" class="loading-spinner">Загрузка...</div>
+    <div v-else-if="friendsStore.error" class="error-message">
+      {{ friendsStore.error }}
     </div>
+    <div v-else-if="profile" class="profile-card">
+      <!-- ИЗМЕНЕНИЕ: Отображаем имя пользователя вместо email -->
+      <h2>Профиль пользователя: {{ profile.user_info.name }}</h2>
+      <p class="user-email">{{ profile.user_info.email }}</p>
 
-    <section class="public-lists">
-      <h3>Публичные списки</h3>
-      <ul v-if="profile.public_lists.length">
-        <li v-for="list in profile.public_lists" :key="list.id">
-          <router-link :to="{ name: 'ListView', params: { id: list.id } }">
-            {{ list.title }} ({{ list.list_type }})
-          </router-link>
-        </li>
-      </ul>
-      <p v-else>У пользователя нет публичных списков.</p>
-    </section>
+      <!-- Блок с кнопками управления дружбой -->
+      <div class="friend-actions">
+        <!-- 1. Кнопка "Добавить в друзья" -->
+        <button v-if="profile.friendship_status === 'none'" @click="handleAddFriend" class="btn-primary">
+          Добавить в друзья
+        </button>
 
+        <!-- 2. Кнопка "Отменить запрос" -->
+        <button v-if="profile.friendship_status === 'request_sent'" @click="handleCancelRequest" class="btn-secondary">
+          Отменить запрос
+        </button>
+        
+        <!-- 3. Кнопка "Удалить из друзей" -->
+        <button v-if="profile.friendship_status === 'friends'" @click="handleRemoveFriend" class="btn-danger">
+          Удалить из друзей
+        </button>
+
+        <!-- 4. Кнопки для входящего запроса -->
+        <div v-if="profile.friendship_status === 'request_received'" class="incoming-request-actions">
+          <button @click="handleAcceptRequest" class="btn-primary">Принять</button>
+          <button @click="handleDeclineRequest" class="btn-secondary">Отклонить</button>
+        </div>
+      </div>
+
+      <hr>
+
+      <h3>Списки пользователя</h3>
+      <div v-if="profile.public_lists && profile.public_lists.length > 0" class="lists-grid">
+         <!-- Здесь можно использовать ваш компонент ListCard для отображения списков -->
+         <div v-for="list in profile.public_lists" :key="list.id" class="list-card-item">
+            <router-link :to="{ name: 'ListView', params: { id: list.id } }">
+              {{ list.title }} ({{ list.privacy_level }})
+            </router-link>
+         </div>
+      </div>
+      <p v-else>У пользователя нет видимых вам списков.</p>
+    </div>
   </div>
-  <div v-else-if="store.isLoading" class="loading">Загрузка профиля...</div>
-  <div v-else class="error-message">{{ store.error || 'Профиль не найден.' }}</div>
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue';
+import { onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useFriendsStore } from '@/store/friends';
 
 const route = useRoute();
-const store = useFriendsStore();
+const friendsStore = useFriendsStore();
 
-const profile = computed(() => store.currentUserProfile);
-const userId = computed(() => route.params.userId);
+// Получаем ID пользователя из URL
+const userId = computed(() => parseInt(route.params.userId, 10));
 
+// Создаем реактивную ссылку на данные профиля из стора
+const profile = computed(() => friendsStore.currentUserProfile);
+
+// --- ОСНОВНАЯ ЛОГИКА ---
+
+// Функция для обработки клика "Добавить в друзья"
+const handleAddFriend = async () => {
+  try {
+    await friendsStore.sendFriendRequest(userId.value);
+    // После успешной отправки стор сам обновит профиль
+  } catch (error) {
+    // Можно показать уведомление об ошибке
+    console.error("Ошибка при отправке запроса:", error);
+  }
+};
+
+// Функции для отмены/удаления дружбы
+const handleCancelRequest = async () => {
+  await friendsStore.removeFriend(profile.value.friendship_id);
+};
+const handleRemoveFriend = async () => {
+  await friendsStore.removeFriend(profile.value.friendship_id);
+};
+
+// Функции для принятия/отклонения запроса
+const handleAcceptRequest = async () => {
+  await friendsStore.acceptFriendRequest(profile.value.friendship_id);
+};
+const handleDeclineRequest = async () => {
+  await friendsStore.declineFriendRequest(profile.value.friendship_id);
+};
+
+// Загружаем данные профиля при монтировании компонента
 onMounted(() => {
-  store.fetchUserProfile(userId.value);
+  friendsStore.fetchUserProfile(userId.value);
 });
 
-// Перезагрузка данных при смене ID в URL (например, при поиске нового юзера)
+// Следим за изменением userId в URL (если пользователь переходит с одного профиля на другой)
 watch(userId, (newId) => {
   if (newId) {
-    store.fetchUserProfile(newId);
+    friendsStore.fetchUserProfile(newId);
   }
 });
-
-const handleAddFriend = () => {
-  store.sendFriendRequest(userId.value);
-};
-
-const handleCancelRequest = () => {
-  if (confirm('Вы уверены, что хотите отменить заявку?')) {
-    store.removeFriend(profile.value.friendship_id);
-  }
-};
-
-const handleRemoveFriend = () => {
-  if (confirm('Вы уверены, что хотите удалить этого пользователя из друзей?')) {
-    store.removeFriend(profile.value.friendship_id);
-  }
-};
-
 </script>
 
 <style scoped>
-.profile-container {
+.container {
   max-width: 800px;
   margin: 2rem auto;
-  padding: 2rem;
+  padding: 0 1rem;
+}
+.profile-card {
   background-color: var(--card-bg-color);
+  padding: 2rem;
   border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
 }
-.actions {
-  margin-bottom: 2rem;
+.user-email {
+  color: #6c757d;
+  margin-bottom: 1.5rem;
 }
-.public-lists h3 {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
+.friend-actions {
+  margin-bottom: 1.5rem;
 }
-.public-lists ul {
-  list-style: none;
-  padding: 0;
+.incoming-request-actions {
+  display: flex;
+  gap: 10px;
 }
-.public-lists a {
+hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1.5rem 0;
+}
+.lists-grid {
+  display: grid;
+  gap: 1rem;
+}
+.list-card-item a {
   display: block;
-  padding: 0.5rem;
-  text-decoration: none;
-  color: var(--primary-color);
+  padding: 1rem;
+  background-color: #f8f9fa;
   border-radius: 5px;
+  text-decoration: none;
+  color: var(--text-color);
+  transition: background-color 0.2s;
 }
-.public-lists a:hover {
-  background-color: rgba(0,0,0,0.05);
+.list-card-item a:hover {
+  background-color: #e9ecef;
 }
-.btn {
-    padding: 0.6rem 1.2rem;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
+
+/* Стили для кнопок */
+.btn-primary, .btn-secondary, .btn-danger {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: opacity 0.2s;
 }
-.btn-primary { background-color: var(--primary-color); color: var(--primary-text-color); }
-.btn-secondary { background-color: #6c757d; color: #fff; }
-.btn-danger { background-color: var(--secondary-color); color: var(--secondary-text-color); }
+.btn-primary:hover, .btn-secondary:hover, .btn-danger:hover {
+  opacity: 0.85;
+}
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+.btn-danger {
+  background-color: var(--secondary-color);
+  color: var(--secondary-text-color);
+}
 </style>

@@ -1,173 +1,197 @@
-<!-- frontend/src/components/NotificationBell.vue -->
 <template>
-  <div class="notification-bell" ref="bellRef">
-    <button @click="toggleDropdown" class="bell-button">
-      <span class="icon">🔔</span>
-      <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
-    </button>
-    <div v-if="isOpen" class="dropdown-menu">
+  <div class="notification-bell-container" v-click-outside="closeDropdown">
+    <div class="bell-icon-wrapper" @click="toggleDropdown">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bell"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      <span v-if="unreadCount > 0" class="notification-badge">{{ unreadCount }}</span>
+    </div>
+
+    <div v-if="isDropdownOpen" class="notification-dropdown">
       <div class="dropdown-header">Уведомления</div>
-      <div v-if="notifications.length === 0" class="no-notifications">
-        Нет новых уведомлений
-      </div>
-      <ul v-else class="notification-list">
-        <li
+      <div v-if="notifications.length > 0" class="notifications-list">
+        <div
           v-for="notification in notifications"
           :key="notification.id"
-          :class="{ 'is-unread': !notification.is_read }"
+          :class="['notification-item', { 'is-read': notification.is_read }]"
           @click="handleNotificationClick(notification)"
         >
-          <p>{{ getNotificationText(notification) }}</p>
-          <small>{{ new Date(notification.created_at).toLocaleString() }}</small>
-        </li>
-      </ul>
+          <p class="notification-text">{{ notificationText(notification) }}</p>
+          <span class="notification-date">{{ formatDate(notification.created_at) }}</span>
+        </div>
+      </div>
+      <div v-else class="no-notifications">
+        У вас нет новых уведомлений.
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { storeToRefs } from 'pinia';
-import { useNotificationStore } from '@/store/notifications';
+import { ref, computed, onMounted, onUnmounted, defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
+import { useNotificationStore } from '@/store/notifications';
 
-const store = useNotificationStore();
-const { notifications, unreadCount } = storeToRefs(store);
+const notificationStore = useNotificationStore();
 const router = useRouter();
 
-const isOpen = ref(false);
-const bellRef = ref(null);
+const isDropdownOpen = ref(false);
+
+const unreadCount = computed(() => notificationStore.unreadCount);
+const notifications = computed(() => notificationStore.notifications);
 
 const toggleDropdown = () => {
-  isOpen.value = !isOpen.value;
+  isDropdownOpen.value = !isDropdownOpen.value;
 };
 
-const getNotificationText = (notification) => {
-  const sender = notification.sender.email.split('@')[0];
+const closeDropdown = () => {
+  isDropdownOpen.value = false;
+};
+
+// --- ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
+// Функция для генерации текста уведомления
+const notificationText = (notification) => {
+  const senderName = notification.sender.name; // Используем .name вместо .email
   switch (notification.type) {
     case 'friend_request':
-      return `${sender} отправил вам заявку в друзья.`;
+      return `${senderName} отправил(а) вам заявку в друзья.`;
     case 'like':
-      return `${sender} понравился ваш элемент.`;
+      return `${senderName} понравился ваш элемент.`;
     case 'comment':
-      return `${sender} оставил комментарий.`;
+      return `${senderName} оставил(а) комментарий.`;
     default:
       return 'Новое уведомление.';
   }
 };
 
-const handleNotificationClick = async (notification) => {
-    // Сначала помечаем как прочитанное, если нужно
-    if (!notification.is_read) {
-        await store.markAsRead(notification.id);
-    }
-    
-    // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-    // Затем выполняем переход в зависимости от типа
-    if (notification.type === 'friend_request') {
-        router.push({ name: 'Friends' });
-    } 
-    // Если это лайк или коммент и есть вся нужная информация
-    else if ((notification.type === 'like' || notification.type === 'comment') && notification.related_list_id && notification.related_item_id) {
-        // Переходим на страницу списка и добавляем хеш для прокрутки к элементу
-        router.push({ 
-            name: 'ListView', 
-            params: { id: notification.related_list_id },
-            // Добавляем хеш, чтобы страница знала, к какому элементу прокрутить
-            hash: `#item-${notification.related_item_id}` 
-        });
-    }
-    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+const handleNotificationClick = (notification) => {
+  // 1. Отмечаем как прочитанное
+  if (!notification.is_read) {
+    notificationStore.markAsRead(notification.id);
+  }
 
-    isOpen.value = false; // Закрываем выпадающее меню в любом случае
+  // 2. Перенаправляем пользователя
+  if (notification.type === 'friend_request') {
+    router.push({ name: 'Friends' });
+  } else if (notification.type === 'like' || notification.type === 'comment') {
+    if (notification.related_list_id) {
+        // Переходим к списку, в котором находится элемент
+        router.push({ name: 'ListView', params: { id: notification.related_list_id } });
+    }
+  }
+
+  // 3. Закрываем выпадающий список
+  closeDropdown();
 };
 
-const handleClickOutside = (event) => {
-    if (bellRef.value && !bellRef.value.contains(event.target)) {
-        isOpen.value = false;
-    }
+
+const formatDate = (dateString) => {
+  const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  return new Date(dateString).toLocaleDateString('ru-RU', options);
+};
+
+// Директива для закрытия dropdown по клику вне элемента
+const vClickOutside = {
+  beforeMount(el, binding) {
+    el.clickOutsideEvent = function(event) {
+      if (!(el === event.target || el.contains(event.target))) {
+        binding.value(event);
+      }
+    };
+    document.body.addEventListener('click', el.clickOutsideEvent);
+  },
+  unmounted(el) {
+    document.body.removeEventListener('click', el.clickOutsideEvent);
+  },
 };
 
 onMounted(() => {
-    document.addEventListener('click', handleClickOutside);
-});
-onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside);
+  notificationStore.startPolling();
 });
 
+onUnmounted(() => {
+  notificationStore.stopPolling();
+});
 </script>
 
 <style scoped>
-.notification-bell {
+.notification-bell-container {
   position: relative;
-  display: inline-block;
 }
-.bell-button {
-  background: none;
-  border: none;
+
+.bell-icon-wrapper {
+  position: relative;
   cursor: pointer;
-  position: relative;
-  font-size: 1.5rem;
+  color: #555;
 }
-.badge {
+
+.notification-badge {
   position: absolute;
-  top: -5px;
-  right: -10px;
-  background-color: red;
+  top: -8px;
+  right: -8px;
+  background-color: #dc3545;
   color: white;
   border-radius: 50%;
   padding: 2px 6px;
-  font-size: 0.75rem;
+  font-size: 10px;
   font-weight: bold;
+  line-height: 1;
 }
-.dropdown-menu {
+
+.notification-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
-  background-color: var(--card-bg-color, white);
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  width: 300px;
+  margin-top: 10px;
+  width: 320px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 12px 16px;
+  font-weight: bold;
+  border-bottom: 1px solid #eee;
+}
+
+.notifications-list {
   max-height: 400px;
   overflow-y: auto;
-  z-index: 1000;
 }
-.dropdown-header {
-  padding: 10px;
-  font-weight: bold;
-  border-bottom: 1px solid var(--border-color, #ccc);
-}
-.notification-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.notification-list li {
-  padding: 10px;
-  border-bottom: 1px solid var(--border-color, #eee);
+
+.notification-item {
+  padding: 12px 16px;
   cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
 }
-.notification-list li:last-child {
-  border-bottom: none;
+
+.notification-item:hover {
+  background-color: #f8f9fa;
 }
-.notification-list li:hover {
-  background-color: var(--bg-color, #f9f9f9);
+
+.notification-item:not(.is-read) {
+  background-color: #fffbeb; /* Легкий желтый фон для непрочитанных */
 }
-.notification-list li.is-unread {
-  background-color: var(--edit-color, #f0f8ff);
+
+.notification-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
 }
-.notification-list li p {
-  margin: 0 0 5px 0;
-  font-size: 0.9rem;
-  color: var(--text-color);
-}
-.notification-list li small {
+
+.notification-date {
+  font-size: 12px;
   color: #888;
+  margin-top: 4px;
+  display: block;
 }
+
 .no-notifications {
-    padding: 20px;
-    text-align: center;
-    color: #888;
+  padding: 20px;
+  text-align: center;
+  color: #888;
 }
 </style>

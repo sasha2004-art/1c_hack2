@@ -218,6 +218,21 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
+  // --- Новая функция для копирования элемента ---
+  async function copyItem(itemId) {
+    error.value = null;
+    try {
+      await apiClient.post(`/items/${itemId}/copy`);
+      // Не нужно обновлять текущий список (т.к. мы копируем в другой список), 
+      // но можно сообщить об успехе
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось скопировать элемент.';
+      console.error(e);
+      throw e;
+    }
+  }
+
+
   async function fetchUserReservations() {
     error.value = null;
     try {
@@ -285,6 +300,7 @@ export const useListsStore = defineStore('lists', () => {
     // Экспортируем новые функции
     toggleLike,
     addComment,
-    deleteComment
+    deleteComment,
+    copyItem // <-- Добавлена
   };
 });

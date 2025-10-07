@@ -1,8 +1,6 @@
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
-from typing import List as TypingList, Optional
-from uuid import UUID # Импортируем UUID
-from . import models, schemas, security
+# Define default list title for copied items
+DEFAULT_COPY_LIST_TITLE = "Мои сохраненные элементы" 
+
 
 # --- CRUD для Пользователей ---
 
@@ -203,7 +201,8 @@ def delete_list(db: Session, db_list: models.List):
 
 def get_item(db: Session, item_id: int) -> Optional[models.Item]:
     """Получить один элемент по его ID."""
-    return db.query(models.Item).filter(models.Item.id == item_id).first()
+    # Используем joinedload, чтобы подтянуть список для проверки прав
+    return db.query(models.Item).options(joinedload(models.Item.list)).filter(models.Item.id == item_id).first()
 
 def create_list_item(db: Session, item_data: schemas.ItemCreate, list_id: int) -> models.Item:
     """Создать новый элемент в списке."""
@@ -228,6 +227,60 @@ def delete_item(db: Session, db_item: models.Item):
     db.delete(db_item)
     db.commit()
     return db_item
+
+# --- (Новое) CRUD для Копирования Элементов ---
+
+def get_or_create_default_copy_list(db: Session, user_id: int) -> models.List:
+    """Получает или создает список по умолчанию для скопированных элементов."""
+    
+    # 1. Поиск существующего списка
+    default_list = db.query(models.List).filter(
+        models.List.owner_id == user_id,
+        models.List.title == DEFAULT_COPY_LIST_TITLE,
+        models.List.list_type == models.ListType.WISHLIST 
+    ).first()
+
+    if default_list:
+        return default_list
+
+    # 2. Создание нового списка, если он не найден
+    list_data = schemas.ListCreate(
+        title=DEFAULT_COPY_LIST_TITLE,
+        description="Сюда автоматически сохраняются элементы, скопированные из чужих списков.",
+        list_type=models.ListType.WISHLIST,
+        privacy_level=models.PrivacyLevel.PRIVATE 
+    )
+    
+    db_list = models.List(**list_data.dict(), owner_id=user_id)
+    db.add(db_list)
+    db.commit()
+    db.refresh(db_list)
+    return db_list
+
+
+def copy_item_to_list(db: Session, source_item: models.Item, target_user: models.User) -> models.Item:
+    """Копирует данные элемента в список пользователя."""
+    
+    # 1. Получаем или создаем целевой список
+    target_list = get_or_create_default_copy_list(db, target_user.id)
+    
+    # 2. Создаем новый элемент на основе исходного
+    new_item_data = {
+        'title': source_item.title,
+        'description': source_item.description,
+        'image_url': source_item.image_url,
+        'thumbnail_url': source_item.thumbnail_url,
+        'list_id': target_list.id
+    }
+    
+    db_item = models.Item(**new_item_data)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    
+    # 3. Возвращаем созданный элемент
+    return db_item
+
 
 # --- CRUD для Бронирования ---
 

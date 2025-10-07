@@ -102,3 +102,44 @@ def upload_item_image(
     updated_item = crud.update_item(db=db, db_item=db_item, item_data=item_data)
     
     return updated_item
+
+# --- НОВЫЙ ЭНДПОИНТ ДЛЯ КОПИРОВАНИЯ ЭЛЕМЕНТА (Задача 3.3) ---
+@router.post("/items/{item_id}/copy", response_model=schemas.ItemRead, status_code=status.HTTP_201_CREATED)
+def copy_item_to_my_list(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Копирует элемент из чужого списка в список текущего пользователя."""
+    
+    source_item = crud.get_item(db, item_id=item_id)
+    if not source_item:
+        raise HTTPException(status_code=404, detail="Исходный элемент не найден")
+        
+    # Проверка: Нельзя копировать из своего собственного списка
+    if source_item.list.owner_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Вы не можете копировать элемент из своего списка")
+
+    # Проверка: Доступна ли функция для этого списка? (Публичный или Друзья)
+    list_owner_id = source_item.list.owner_id
+    
+    if source_item.list.privacy_level == models.PrivacyLevel.PRIVATE:
+        # Проверка 1: Если список приватный, нельзя копировать, если ты не владелец
+        raise HTTPException(status_code=403, detail="Недостаточно прав для копирования из этого списка.")
+
+    if source_item.list.privacy_level == models.PrivacyLevel.FRIENDS_ONLY:
+        # Проверка 2: Если только для друзей, проверяем статус дружбы
+        are_friends = crud.are_users_friends(db, user1_id=current_user.id, user2_id=list_owner_id)
+        if not are_friends:
+             raise HTTPException(status_code=403, detail="Недостаточно прав для копирования из этого списка.")
+
+    # Выполняем копирование
+    new_item = crud.copy_item_to_list(db, source_item=source_item, target_user=current_user)
+    
+    # Поскольку мы не возвращаем полный список, а только созданный элемент, 
+    # нужно вручную дополнить схему ItemRead, которая ожидает likes_count и is_liked
+    return schemas.ItemRead(
+        **new_item.__dict__, 
+        likes_count=0, 
+        is_liked_by_current_user=False
+    )

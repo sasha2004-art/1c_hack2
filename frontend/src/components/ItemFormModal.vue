@@ -8,7 +8,6 @@
           <input id="title" type="text" v-model="formData.title" required>
         </div>
         
-        <!-- Поле "Описание" теперь является основным полем для форматированного текста -->
         <div class="form-group">
           <label>Описание</label>
           <QuillEditor 
@@ -19,11 +18,9 @@
           />
         </div>
 
-        <!-- Блок с полем "Детали" полностью удален -->
-
         <div class="modal-actions">
-          <button type="button" @click="close" class="btn-cancel">Отмена</button>
-          <button type="submit" class="btn-save">Сохранить</button>
+          <button type="button" @click="close" class="btn btn-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
         </div>
       </form>
     </div>
@@ -45,7 +42,6 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save']);
 
-// ИЗМЕНЕНИЕ: Убрали 'details' из состояния формы
 const formData = ref({
   id: null,
   title: '',
@@ -54,14 +50,9 @@ const formData = ref({
 
 const formTitle = computed(() => props.item ? 'Редактировать элемент' : 'Добавить новый элемент');
 
-// ИЗМЕНЕНИЕ: Убрали 'details' из логики заполнения формы
 watch(() => props.item, (newItem) => {
   if (newItem) {
-    formData.value = { 
-      id: newItem.id,
-      title: newItem.title || '',
-      description: newItem.description || ''
-    };
+    formData.value = { id: newItem.id, title: newItem.title || '', description: newItem.description || '' };
   } else {
     formData.value = { id: null, title: '', description: '' };
   }
@@ -78,90 +69,62 @@ const close = () => {
 </script>
 
 <style scoped>
+/* Стили скопированы из ListFormModal для консистентности и используют CSS переменные */
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.7); display: flex;
+  justify-content: center; align-items: center; z-index: 1000;
 }
-
 .modal-content {
-  background-color: #F5F5DC; /* Coffee theme background */
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  background-color: var(--card-bg-color); color: var(--text-color);
+  padding: 2.5rem; border-radius: 8px; width: 90%; max-width: 600px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 1px solid var(--border-color);
 }
-
 .modal-title {
-  color: #8B4513; /* Coffee theme text */
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #D2B48C;
-  padding-bottom: 0.5rem;
+  color: var(--text-color); margin-top: 0; margin-bottom: 2rem;
+  text-align: center; font-size: 1.8rem;
 }
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #8B4513;
-  font-weight: bold;
-}
-
+.form-group { margin-bottom: 1.5rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
 .form-group input[type="text"] {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #D2B48C;
-  border-radius: 4px;
-  background-color: #FFFDF6;
-  box-sizing: border-box;
+  width: 100%; padding: 0.8rem; border: 1px solid var(--border-color);
+  border-radius: 4px; background-color: var(--bg-color);
+  color: var(--text-color); box-sizing: border-box; font-size: 1rem;
 }
-
 .modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;
 }
-
-button {
-  padding: 0.7rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  color: white;
+.btn {
+  padding: 0.7rem 1.5rem; border-radius: 5px; cursor: pointer;
+  font-weight: bold; font-size: 1rem; border: 1px solid transparent;
 }
-
-.btn-save {
-  background-color: #A0522D; /* Primary coffee color */
+.btn-primary {
+  background-color: var(--primary-color); color: var(--primary-text-color);
+  border-color: var(--primary-color);
 }
-
 .btn-cancel {
-  background-color: #DEB887; /* Secondary coffee color */
-  color: #8B4513;
+  background-color: transparent; color: var(--text-color);
+  border: 1px solid var(--border-color);
 }
 
+/* Стилизация редактора Quill с использованием CSS переменных */
 :deep(.ql-toolbar) {
+  border-color: var(--border-color) !important;
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
-  border-color: #D2B48C !important;
 }
 :deep(.ql-container) {
+  border-color: var(--border-color) !important;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  min-height: 150px;
   border-bottom-left-radius: 4px;
   border-bottom-right-radius: 4px;
-  border-color: #D2B48C !important;
-  background-color: #FFFDF6;
-  min-height: 120px;
+}
+:deep(.ql-editor) {
+  color: var(--text-color);
+}
+:deep(.ql-snow .ql-stroke) {
+    stroke: var(--text-color);
 }
 </style>

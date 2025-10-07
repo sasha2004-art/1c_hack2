@@ -1,38 +1,51 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" v-if="show">
+    <!-- ИЗМЕНЕНИЕ: Убран :style="themeStyles", теперь стили наследуются -->
     <div class="modal-content">
-      <h2>{{ formTitle }}</h2>
+      <h3 class="modal-title">{{ formTitle }}</h3>
       <form @submit.prevent="handleSubmit">
+        <!-- Название -->
         <div class="form-group">
           <label for="title">Название</label>
-          <input type="text" id="title" v-model="form.title" required>
+          <input id="title" type="text" v-model="formData.title" required>
         </div>
+        
+        <!-- Описание -->
         <div class="form-group">
           <label for="description">Описание</label>
-          <textarea id="description" v-model="form.description"></textarea>
+          <textarea id="description" v-model="formData.description"></textarea>
         </div>
+
+        <!-- Тип списка -->
         <div class="form-group">
           <label for="list_type">Тип списка</label>
-          <select id="list_type" v-model="form.list_type">
-            <option value="wishlist">Wishlist</option>
-            <option value="todo">To-Do</option>
-            <option value="books">Books</option>
-            <option value="movies">Movies</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="privacy_level">Уровень приватности</label>
-          <select id="privacy_level" v-model="form.privacy_level">
-            <option value="private">Приватный</option>
-            <option value="public">Публичный</option>
+          <select id="list_type" v-model="formData.list_type">
+            <option v-for="option in listTypeOptions" :key="option.value" :value="option.value">
+              {{ option.text }}
+            </option>
           </select>
         </div>
 
-        <!-- (Задача 1.3) Заменяем старые поля на новый компонент -->
-        <ThemeSelector v-model="form.theme_name" />
-        <div class="form-actions">
-          <button type="button" class="secondary" @click="$emit('close')">Отмена</button>
-          <button type="submit">Сохранить</button>
+        <!-- ИЗМЕНЕНИЕ: Добавлен выбор уровня приватности -->
+        <div class="form-group">
+          <label for="privacy_level">Уровень приватности</label>
+           <select id="privacy_level" v-model="formData.privacy_level">
+            <option v-for="option in privacyLevelOptions" :key="option.value" :value="option.value">
+              {{ option.text }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Тема -->
+        <div class="form-group">
+          <label>Тема оформления</label>
+          <ThemeSelector v-model="formData.theme_name" />
+        </div>
+
+        <!-- Кнопки -->
+        <div class="modal-actions">
+          <button type="button" @click="close" class="btn btn-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
         </div>
       </form>
     </div>
@@ -40,78 +53,111 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-// Импортируем новый компонент
+import { ref, watch, computed } from 'vue';
+// ИЗМЕНЕНИЕ: themes больше не нужен для стилизации, но нужен для ThemeSelector
+// import { themes } from '../themes.js'; 
 import ThemeSelector from './ThemeSelector.vue';
 
 const props = defineProps({
-  listToEdit: {
+  show: Boolean,
+  list: {
     type: Object,
     default: null
   }
 });
+
 const emit = defineEmits(['close', 'save']);
 
-const form = ref({
+// Переводы для выпадающих списков
+const listTypeOptions = [
+  { value: 'wishlist', text: 'Список желаний' },
+  { value: 'todo', text: 'Список дел' },
+  { value: 'books', text: 'Книги' },
+  { value: 'movies', text: 'Фильмы' }
+];
+
+// ИЗМЕНЕНИЕ: Добавлены переводы для приватности
+const privacyLevelOptions = [
+    { value: 'private', text: 'Приватный' },
+    { value: 'public', text: 'Публичный' }
+];
+
+// ИЗМЕНЕНИЕ: Добавлено поле privacy_level
+const formData = ref({
+  id: null,
   title: '',
   description: '',
   list_type: 'wishlist',
-  privacy_level: 'private',
-  theme_name: 'default' // Новое поле
+  privacy_level: 'private', // Значение по умолчанию
+  theme_name: 'default'
 });
 
-const formTitle = computed(() => props.listToEdit ? 'Редактировать список' : 'Создать новый список');
+const formTitle = computed(() => props.list ? 'Редактировать список' : 'Создать новый список');
 
-onMounted(() => {
-  if (props.listToEdit) {
-    form.value = { ...props.listToEdit };
+// ИЗМЕНЕНИЕ: Убрана вычисляемая переменная themeStyles
+// const themeStyles = computed(...)
+
+watch(() => props.list, (newList) => {
+  if (newList) {
+    // Режим редактирования: копируем все данные
+    formData.value = { ...newList };
+  } else {
+    // Режим создания: сбрасываем до значений по умолчанию
+    formData.value = { id: null, title: '', description: '', list_type: 'wishlist', privacy_level: 'private', theme_name: 'default' };
   }
-});
+}, { immediate: true });
 
 const handleSubmit = () => {
-  emit('save', form.value);
+  emit('save', formData.value);
+  close();
+};
+
+const close = () => {
+  emit('close');
 };
 </script>
 
 <style scoped>
+/* ИЗМЕНЕНИЕ: Все стили теперь используют CSS переменные */
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.7); display: flex;
+  justify-content: center; align-items: center; z-index: 1000;
 }
 .modal-content {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
+  background-color: var(--card-bg-color); /* Фон из темы */
+  color: var(--text-color); /* Цвет текста из темы */
+  padding: 2.5rem; border-radius: 8px; width: 90%; max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  border: 1px solid var(--border-color);
 }
-.form-group {
-  margin-bottom: 1rem;
+.modal-title {
+  color: var(--text-color); margin-top: 0; margin-bottom: 2rem;
+  text-align: center; font-size: 1.8rem;
 }
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
+.form-group { margin-bottom: 1.5rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 0.8rem; 
+  border: 1px solid var(--border-color); /* Граница из темы */
+  border-radius: 4px; 
+  background-color: var(--bg-color); /* Фон поля ввода из темы */
+  color: var(--text-color); /* Цвет текста в поле из темы */
+  box-sizing: border-box; font-size: 1rem;
 }
-.form-group input,
-.form-group textarea,
-.form-group select {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;
 }
-.form-actions {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+.btn {
+  padding: 0.7rem 1.5rem; border-radius: 5px; cursor: pointer;
+  font-weight: bold; font-size: 1rem; border: 1px solid transparent;
+}
+.btn-primary {
+  background-color: var(--primary-color); color: var(--primary-text-color);
+  border-color: var(--primary-color);
+}
+.btn-cancel {
+  background-color: transparent; color: var(--text-color);
+  border: 1px solid var(--border-color);
 }
 </style>

@@ -2,16 +2,18 @@
   <div class="list-card" :style="cardStyle">
     <div class="card-content" @click="navigateToList">
       <h3 class="card-title">{{ list.title }}</h3>
-      <p class="card-description">{{ list.description || 'Нет описания' }}</p>
+      <p class="card-description">{{ list.description }}</p>
     </div>
     <div class="card-footer">
-      <div class="tags">
-        <span class="tag tag-type">{{ list.list_type }}</span>
-        <span class="tag tag-privacy">{{ list.privacy_level }}</span>
+      <div class="card-tags">
+        <!-- ИЗМЕНЕНИЕ: Отображаем переведенные теги -->
+        <span class="tag tag-type">{{ translatedType }}</span>
+        <span class="tag tag-privacy">{{ translatedPrivacy }}</span>
       </div>
+      <!-- ИЗМЕНЕНИЕ: Добавлены кнопки, которые вызывают события -->
       <div class="card-actions">
-        <button class="btn-card btn-edit" @click="$emit('edit', list)">✏️</button>
-        <button class="btn-card btn-delete" @click="$emit('delete', list.id)">🗑️</button>
+        <button @click.stop="$emit('edit', list)" class="action-btn" title="Редактировать">✏️</button>
+        <button @click.stop="$emit('delete', list.id)" class="action-btn" title="Удалить">🗑️</button>
       </div>
     </div>
   </div>
@@ -29,20 +31,37 @@ const props = defineProps({
   }
 });
 
+// ИЗМЕНЕНИЕ: Определяем события, которые компонент может отправлять
 defineEmits(['edit', 'delete']);
 
 const router = useRouter();
 
-// Вычисляемое свойство для применения стилей темы к карточке
+// Применяем стили из темы к карточке
 const cardStyle = computed(() => {
-  const themeName = props.list.theme_name || 'default';
-  const theme = themes[themeName] || themes.default;
+  const theme = themes[props.list.theme_name] || themes.default;
   return theme.styles;
 });
 
-function navigateToList() {
+// --- ИЗМЕНЕНИЕ: Логика перевода тегов ---
+const typeTranslations = {
+  wishlist: 'Желания',
+  todo: 'Дела',
+  books: 'Книги',
+  movies: 'Фильмы'
+};
+
+const privacyTranslations = {
+  private: 'Приватный',
+  public: 'Публичный'
+};
+
+const translatedType = computed(() => typeTranslations[props.list.list_type] || props.list.list_type);
+const translatedPrivacy = computed(() => privacyTranslations[props.list.privacy_level] || props.list.privacy_level);
+// --- Конец логики перевода ---
+
+const navigateToList = () => {
   router.push({ name: 'ListView', params: { id: props.list.id } });
-}
+};
 </script>
 
 <style scoped>
@@ -50,39 +69,35 @@ function navigateToList() {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-radius: 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  
-  /* Применяем переменные из темы */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--border-color);
   background-color: var(--card-bg-color);
   color: var(--text-color);
-  border: 1px solid var(--border-color);
 }
 
 .list-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
 .card-content {
   padding: 1.5rem;
   cursor: pointer;
+  flex-grow: 1;
 }
 
 .card-title {
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
-  font-weight: bold;
 }
 
 .card-description {
   margin: 0;
-  font-size: 0.9rem;
   opacity: 0.8;
-  height: 40px; /* Ограничение высоты для единообразия */
-  overflow: hidden;
+  font-size: 0.9rem;
 }
 
 .card-footer {
@@ -90,54 +105,48 @@ function navigateToList() {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1.5rem;
-  background-color: rgba(0, 0, 0, 0.03); /* Легкий фон для футера */
   border-top: 1px solid var(--border-color);
+  background-color: rgba(0,0,0,0.02);
 }
 
-.tags {
+.card-tags {
   display: flex;
-  gap: 8px;
-  font-size: 0.75rem;
+  gap: 0.5rem;
 }
 
 .tag {
-  padding: 4px 8px;
+  padding: 0.25rem 0.6rem;
   border-radius: 12px;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: bold;
+  opacity: 0.9;
 }
 
 .tag-type {
-  background-color: var(--primary-color);
-  color: var(--primary-text-color);
-  opacity: 0.7;
+  background-color: var(--edit-color);
+  color: var(--edit-text-color);
 }
 
 .tag-privacy {
-  background-color: #6c757d; /* Нейтральный цвет для приватности */
-  color: white;
-  opacity: 0.7;
+  background-color: #e9ecef;
+  color: #495057;
 }
 
 .card-actions {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
-.btn-card {
-  border: none;
+.action-btn {
   background: none;
+  border: none;
   cursor: pointer;
   font-size: 1.2rem;
-  padding: 5px;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
+  opacity: 0.7;
+  transition: opacity 0.2s;
 }
-.btn-card:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+
+.action-btn:hover {
+  opacity: 1;
 }
 </style>

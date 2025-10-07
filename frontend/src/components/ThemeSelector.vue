@@ -1,19 +1,17 @@
 <template>
   <div class="theme-selector">
-    <label>Тема оформления</label>
-    <div class="theme-options">
-      <div
-        v-for="(theme, key) in themes"
-        :key="key"
-        class="theme-option"
-        :class="{ 'selected': modelValue === key }"
-        :style="{ backgroundColor: theme.styles['--bg-color'] }"
-        @click="selectTheme(key)"
-      >
-        <span class="theme-name" :style="{ color: theme.styles['--text-color'] }">{{ theme.name }}</span>
-        <div v-if="modelValue === key" class="checkmark">✔</div>
-      </div>
-    </div>
+    <button
+      v-for="(theme, key) in themes"
+      :key="key"
+      type="button"
+      class="theme-button"
+      :class="{ 'selected': modelValue === key }"
+      :style="getThemePreviewStyles(theme)"
+      @click="selectTheme(key)"
+    >
+      {{ theme.name }}
+      <span v-if="modelValue === key" class="checkmark">✓</span>
+    </button>
   </div>
 </template>
 
@@ -21,54 +19,54 @@
 import { themes } from '../themes.js';
 
 defineProps({
-  modelValue: {
-    type: String,
-    required: true,
-  },
+  modelValue: String
 });
 
 const emit = defineEmits(['update:modelValue']);
 
-function selectTheme(themeKey) {
+const selectTheme = (themeKey) => {
   emit('update:modelValue', themeKey);
-}
+};
+
+// Функция для стилизации кнопок-превью
+const getThemePreviewStyles = (theme) => {
+  return {
+    backgroundColor: theme.styles['--card-bg-color'],
+    color: theme.styles['--text-color'],
+    borderColor: theme.styles['--primary-color']
+  };
+};
 </script>
 
 <style scoped>
 .theme-selector {
-  margin-bottom: 1rem;
-}
-.theme-options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
-  margin-top: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
 }
-.theme-option {
-  padding: 10px;
-  border-radius: 5px;
+
+.theme-button {
+  padding: 1rem 0.5rem;
   border: 2px solid #ccc;
+  border-radius: 5px;
   cursor: pointer;
   text-align: center;
-  position: relative;
-  transition: transform 0.2s, border-color 0.2s;
-}
-.theme-option:hover {
-  transform: scale(1.05);
-}
-.theme-option.selected {
-  border-color: #007bff;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-}
-.theme-name {
-  font-size: 0.9em;
   font-weight: bold;
+  position: relative;
+  transition: all 0.2s ease;
 }
+
+.theme-button.selected {
+  border-width: 3px;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
 .checkmark {
   position: absolute;
   top: 5px;
-  right: 5px;
-  color: #007bff;
-  font-weight: bold;
+  right: 8px;
+  font-size: 1.2rem;
+  color: var(--border-color);
 }
 </style>

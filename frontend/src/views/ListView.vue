@@ -1,11 +1,12 @@
 <template>
+  <!-- ИЗМЕНЕНИЕ: Класс list-view-container теперь не имеет жестко заданного фона -->
   <div class="list-view-container" v-if="!listsStore.isLoading">
     <div v-if="listsStore.currentList" class="list-content">
       <div class="list-header">
         <h1>{{ listsStore.currentList.title }}</h1>
-        <button @click="openAddItemModal" class="btn-primary">Добавить элемент</button>
+        <button @click="openAddItemModal" class="btn btn-primary">Добавить элемент</button>
       </div>
-      <p v-if="listsStore.currentList.description">{{ listsStore.currentList.description }}</p>
+      <p class="list-description" v-if="listsStore.currentList.description">{{ listsStore.currentList.description }}</p>
 
       <div class="items-container">
         <p v-if="!listsStore.currentList.items.length">В этом списке пока нет элементов.</p>
@@ -23,7 +24,6 @@
       <router-link to="/">Вернуться на главную</router-link>
     </div>
 
-    <!-- Модальное окно для создания/редактирования -->
     <ItemFormModal
       :show="isModalVisible"
       :item="currentItem"
@@ -37,6 +37,7 @@
 </template>
 
 <script setup>
+// Скриптовая часть остается без изменений
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useListsStore } from '../store/lists';
@@ -45,59 +46,27 @@ import ItemFormModal from '../components/ItemFormModal.vue';
 
 const route = useRoute();
 const listsStore = useListsStore();
-
 const isModalVisible = ref(false);
 const currentItem = ref(null);
-
-// Получаем ID списка из URL
 const listId = computed(() => parseInt(route.params.id));
 
-// Загружаем данные списка при монтировании компонента
 onMounted(() => {
   listsStore.fetchListById(listId.value);
 });
 
-// --- Логика управления модальным окном ---
-const openAddItemModal = () => {
-  currentItem.value = null; // Устанавливаем в null для создания нового элемента
-  isModalVisible.value = true;
-};
-
-const openEditItemModal = (item) => {
-  currentItem.value = item; // Передаем данные существующего элемента
-  isModalVisible.value = true;
-};
-
-const closeModal = () => {
-  isModalVisible.value = false;
-  currentItem.value = null;
-};
-
-// --- ИСПРАВЛЕННАЯ ЛОГИКА СОХРАНЕНИЯ ---
+const openAddItemModal = () => { currentItem.value = null; isModalVisible.value = true; };
+const openEditItemModal = (item) => { currentItem.value = item; isModalVisible.value = true; };
+const closeModal = () => { isModalVisible.value = false; currentItem.value = null; };
 const handleSaveItem = async (itemData) => {
   try {
-    // Если у элемента есть ID, значит, мы его редактируем
-    if (itemData.id) {
-      await listsStore.updateItem(itemData.id, itemData);
-    } 
-    // Если ID нет (он равен null), значит, мы создаем новый элемент
-    else {
-      await listsStore.addItem(listId.value, itemData);
-    }
-  } catch (error) {
-    console.error("Ошибка при сохранении элемента:", error);
-    // Здесь можно показать уведомление пользователю
-  }
+    if (itemData.id) { await listsStore.updateItem(itemData.id, itemData); } 
+    else { await listsStore.addItem(listId.value, itemData); }
+  } catch (error) { console.error("Ошибка при сохранении элемента:", error); }
 };
-
-// --- Логика удаления ---
 const handleDeleteItem = async (itemId) => {
   if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
-    try {
-      await listsStore.deleteItem(itemId);
-    } catch (error) {
-      console.error("Ошибка при удалении элемента:", error);
-    }
+    try { await listsStore.deleteItem(itemId); }
+    catch (error) { console.error("Ошибка при удалении элемента:", error); }
   }
 };
 </script>
@@ -106,40 +75,32 @@ const handleDeleteItem = async (itemId) => {
 .list-view-container {
   max-width: 900px;
   margin: 2rem auto;
-  padding: 2rem;
-  background-color: var(--card-bg-color, #fff);
+}
+
+/* ИЗМЕНЕНИЕ: Основной блок контента теперь использует переменные темы */
+.list-content {
+  padding: 2.5rem;
+  background-color: var(--card-bg-color); /* Фон из темы */
+  color: var(--text-color); /* Текст из темы */
+  border: 1px solid var(--border-color); /* Граница из темы */
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  color: var(--text-color, #333);
 }
 
 .list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid var(--border-color, #dee2e6);
+  border-bottom: 2px solid var(--border-color);
   padding-bottom: 1rem;
   margin-bottom: 1rem;
 }
 
-h1 {
-  margin: 0;
-  color: var(--text-color);
-}
+h1 { margin: 0; }
 
-.btn-primary {
-  background-color: var(--primary-color, #007bff);
-  color: var(--primary-text-color, #fff);
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s;
-}
-
-.btn-primary:hover {
+.list-description {
   opacity: 0.9;
+  margin-bottom: 2rem;
 }
 
 .items-container {
@@ -153,6 +114,6 @@ h1 {
 }
 
 .error-message a {
-  color: var(--primary-color, #007bff);
+  color: var(--primary-color);
 }
 </style>

@@ -1,69 +1,67 @@
 <template>
-  <div class="search-container">
-    <h4>Найти пользователей</h4>
+  <div class="user-search">
+    <!-- ИЗМЕНЕНИЕ ЗДЕСЬ: убран слэш в конце тега input -->
     <input 
       type="text" 
       v-model="searchQuery" 
-      @input="onSearch" 
-      placeholder="Введите email..."
-      class="search-input"
-    />
-    <div v-if="store.isLoading">Поиск...</div>
-    <ul v-if="store.searchResults.length" class="search-results">
-      <li v-for="user in store.searchResults" :key="user.id">
+      @input="handleSearch"
+      placeholder="Поиск по email или имени..." 
+    >
+    <div v-if="friendsStore.isLoading">Загрузка...</div>
+    <ul v-if="searchResults.length > 0" class="search-results">
+      <li v-for="user in searchResults" :key="user.id">
         <router-link :to="{ name: 'UserProfile', params: { userId: user.id } }">
-          {{ user.email }}
+          {{ user.name }} ({{ user.email }})
         </router-link>
       </li>
     </ul>
-    <p v-if="searchQuery && !store.searchResults.length && !store.isLoading">
+    <div v-if="!friendsStore.isLoading && searchQuery && searchResults.length === 0">
       Пользователи не найдены.
-    </p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useFriendsStore } from '@/store/friends';
 
-const store = useFriendsStore();
+const friendsStore = useFriendsStore();
 const searchQuery = ref('');
+
+// Компьютед свойство для удобного доступа к результатам
+const searchResults = computed(() => friendsStore.searchResults);
+
 let searchTimeout = null;
 
-const onSearch = () => {
+const handleSearch = () => {
   clearTimeout(searchTimeout);
+  // Добавляем задержку, чтобы не отправлять запрос на каждое нажатие клавиши
   searchTimeout = setTimeout(() => {
-    store.searchUsers(searchQuery.value);
-  }, 300); // Задержка для предотвращения слишком частых запросов
+    friendsStore.searchUsers(searchQuery.value);
+  }, 300);
 };
 </script>
 
 <style scoped>
-.search-container {
-  padding: 1rem;
-  background-color: rgba(0,0,0,0.05);
-  border-radius: 8px;
-  margin-bottom: 2rem;
-}
-.search-input {
+/* Стили для компонента поиска */
+.user-search input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 8px;
+  border-radius: 4px;
   border: 1px solid var(--border-color);
-  border-radius: 5px;
 }
 .search-results {
-  list-style-type: none;
+  list-style: none;
   padding: 0;
-  margin-top: 0.5rem;
+  margin-top: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
 }
-.search-results li a {
-  display: block;
-  padding: 0.5rem;
-  text-decoration: none;
-  color: var(--primary-color);
-  border-radius: 5px;
+.search-results li {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
 }
-.search-results li a:hover {
-  background-color: rgba(0,0,0,0.05);
+.search-results li:last-child {
+  border-bottom: none;
 }
 </style>

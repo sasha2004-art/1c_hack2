@@ -7,6 +7,7 @@ from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus, Notific
 # --- Схемы для пользователя ---
 
 class UserBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
     email: EmailStr
 
 class UserCreate(UserBase):
@@ -15,6 +16,7 @@ class UserCreate(UserBase):
 # Упрощенная схема для отображения в комментариях
 class UserInComment(BaseModel):
     id: int
+    name: str
     email: EmailStr
     class Config:
         from_attributes = True

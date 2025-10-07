@@ -12,17 +12,18 @@ router = APIRouter()
 def read_users_me(current_user: models.User = Depends(get_current_active_user)):
     return current_user
 
-# (Задача 3.1) Новый эндпоинт для поиска
+# --- ИЗМЕНИТЬ ЭТУ ФУНКЦИЮ ---
 @router.get("/search", response_model=List[schemas.UserInComment])
 def search_users(
-    email: Optional[str] = "",
+    query: Optional[str] = "", # Переименовываем 'email' в 'query'
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    """Поиск пользователей по email."""
-    if not email:
+    """Поиск пользователей по email или имени."""
+    if not query:
         return []
-    users = crud.search_users_by_email(db, email_query=email, current_user_id=current_user.id)
+    # Вызываем обновленную CRUD функцию
+    users = crud.search_users_by_email(db, query=query, current_user_id=current_user.id)
     return users
 
 # (Задача 3.2) Новый эндпоинт для профиля

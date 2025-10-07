@@ -29,16 +29,17 @@ export const useFriendsStore = defineStore('friends', () => {
         }
     }
 
-    // (Задача 4.3) Новые экшены
-    async function searchUsers(emailQuery) {
-        if (!emailQuery) {
+    // --- ИЗМЕНИТЬ ЭТУ ФУНКЦИЮ ---
+    async function searchUsers(query) { // Переименовываем параметр
+        if (!query) {
             searchResults.value = [];
             return;
         }
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await apiClient.get(`/users/search?email=${emailQuery}`);
+            // Используем новый параметр 'query' в запросе
+            const response = await apiClient.get(`/users/search?query=${query}`);
             searchResults.value = response.data;
         } catch (e) {
             error.value = 'Ошибка поиска пользователей.';

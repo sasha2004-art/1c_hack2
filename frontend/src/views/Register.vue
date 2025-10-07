@@ -2,6 +2,11 @@
   <div class="auth-page">
     <h2>Регистрация</h2>
     <form @submit.prevent="handleSubmit">
+      <!-- НОВОЕ ПОЛЕ "ИМЯ" -->
+      <div class="form-group">
+        <label for="name">Имя</label>
+        <input type="text" id="name" v-model="name" required placeholder="Введите ваше имя">
+      </div>
       <div class="form-group">
         <label for="email">Email:</label>
         <input type="email" v-model="email" id="email" required />
@@ -21,12 +26,18 @@
 import { ref } from 'vue'
 import { useAuthStore } from '../store/auth'
 
+const authStore = useAuthStore()
+const name = ref('') // <-- ДОБАВИТЬ
 const email = ref('')
 const password = ref('')
-const authStore = useAuthStore()
 
 const handleSubmit = () => {
-  authStore.register({ email: email.value, password: password.value })
+  // Передаем имя в экшен
+  authStore.register({ 
+    name: name.value, // <-- ДОБАВИТЬ
+    email: email.value, 
+    password: password.value 
+  })
 }
 </script>
 

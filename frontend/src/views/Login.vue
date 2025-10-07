@@ -3,8 +3,9 @@
     <h2>Вход</h2>
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" v-model="email" id="email" required />
+        <!-- ИЗМЕНИТЬ LABEL И PLACEHOLDER -->
+        <label for="email">Email или Имя</label>
+        <input type="text" id="email" v-model="email" required placeholder="Введите email или имя">
       </div>
       <div class="form-group">
         <label for="password">Пароль:</label>

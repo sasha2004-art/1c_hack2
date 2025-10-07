@@ -12,17 +12,32 @@ def get_user(db: Session, user_id: int):
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
-# (Задача 1.1) Новая функция для поиска
-def search_users_by_email(db: Session, email_query: str, current_user_id: int, limit: int = 10):
-    """Ищет пользователей по частичному совпадению email, исключая текущего пользователя."""
+# --- НОВАЯ ФУНКЦИЯ ДЛЯ ВХОДА ---
+def get_user_by_email_or_name(db: Session, login_identifier: str) -> Optional[models.User]:
+    """Ищет пользователя по email ИЛИ по имени."""
     return db.query(models.User).filter(
-        models.User.email.ilike(f"%{email_query}%"),
+        or_(
+            models.User.email == login_identifier,
+            models.User.name == login_identifier
+        )
+    ).first()
+
+# --- ИЗМЕНИТЬ ЭТУ ФУНКЦИЮ ---
+def search_users_by_email(db: Session, query: str, current_user_id: int, limit: int = 10):
+    """Ищет пользователей по частичному совпадению email ИЛИ имени, исключая текущего пользователя."""
+    return db.query(models.User).filter(
+        or_(
+            models.User.email.ilike(f"%{query}%"),
+            models.User.name.ilike(f"%{query}%")
+        ),
         models.User.id != current_user_id
     ).limit(limit).all()
 
+# --- ИЗМЕНИТЬ ЭТУ ФУНКЦИЮ ---
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = security.get_password_hash(user.password)
-    db_user = models.User(email=user.email, hashed_password=hashed_password)
+    # Добавляем user.name при создании
+    db_user = models.User(email=user.email, name=user.name, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

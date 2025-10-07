@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import os
@@ -44,6 +46,23 @@ app.include_router(interactions.router)
 app.include_router(friends.router)
 # (Новое) Регистрируем роутер уведомлений
 app.include_router(notifications.router)
+
+# Монтируем раздачу статических файлов (JS, CSS, изображения)
+# Путь /assets будет обслуживаться из папки static/frontend/assets
+app.mount("/assets", StaticFiles(directory="static/frontend/assets"), name="assets")
+
+# Создаем эндпоинт, который будет отдавать index.html для любого неизвестного пути
+# Это нужно, чтобы Vue Router работал корректно.
+@app.get("/{full_path:path}")
+async def serve_vue_app(full_path: str):
+    # Путь к вашему главному файлу фронтенда
+    index_path = os.path.join("static/frontend", "index.html")
+    # Проверяем, существует ли файл
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    else:
+        # Если index.html не найден, возвращаем ошибку
+        raise HTTPException(status_code=404, detail="Frontend entrypoint not found")
 
 
 @app.get("/")

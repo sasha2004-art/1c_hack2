@@ -153,6 +153,15 @@ onMounted(async () => {
   word-wrap: break-word;
 }
 
+/* Стили для изображений внутри описания */
+.item-description :deep(img) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
 .item-actions {
   margin-top: auto;
   padding-top: 1rem;

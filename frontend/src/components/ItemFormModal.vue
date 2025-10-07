@@ -1,45 +1,3 @@
-<template>
-  <!-- 2. v-if управляет видимостью всего компонента -->
-  <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
-    <div class="modal-content">
-      <button class="modal-close" @click="closeModal">&times;</button>
-      <h2>{{ itemToEdit ? 'Редактировать желание' : 'Добавить новое желание' }}</h2>
-
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="item-title">Название</label>
-          <input
-            id="item-title"
-            type="text"
-            v-model="title"
-            placeholder="Например, 'Поездка в горы'"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="item-description">Описание</label>
-          <QuillEditor
-            v-model:content="content"
-            contentType="html"
-            :options="quillOptions"
-            style="min-height: 150px; display: flex; flex-direction: column;"
-          />
-        </div>
-
-        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
-          <button type="submit" class="btn-primary">
-            {{ itemToEdit ? 'Сохранить' : 'Добавить' }}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { ref, watch } from 'vue';
 import { useListsStore } from '@/store/lists';
@@ -64,6 +22,9 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const listsStore = useListsStore();
+const title = ref('');
+const description = ref('');
+const errorMessage = ref('');
 
 const quillOptions = {
   theme: 'snow',
@@ -79,19 +40,13 @@ const quillOptions = {
       matchers: [
         [Node.TEXT_NODE, (node, delta) => {
           const text = node.data;
-          // Регулярное выражение теперь может быть более общим, так как проверку будет делать бэкенд
           const urlRegex = /(https?:\/\/[^\s]+)/i;
           const match = text.match(urlRegex);
 
           if (match && text.trim() === match[0]) {
             const originalUrl = match[0];
-            
-            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // Формируем URL к нашему прокси-эндпоинту
-            // encodeURIComponent обязателен, чтобы URL с параметрами передался корректно!
             const proxyUrl = `http://localhost:8000/utils/image-proxy?url=${encodeURIComponent(originalUrl)}`;
 
-            // Заменяем вставленный текст на картинку, но с src, указывающим на наш прокси
             return {
               ops: [{ insert: { image: proxyUrl } }]
             };
@@ -104,6 +59,7 @@ const quillOptions = {
   }
 };
 
+
 watch(() => props.itemToEdit, (newItem) => {
   if (newItem) {
     title.value = newItem.title;
@@ -115,71 +71,36 @@ watch(() => props.itemToEdit, (newItem) => {
 });
 
 
-const store = useListsStore();
-
-// Единое состояние для всего контента
-const content = ref(props.initialItem?.description || '');
-const title = ref(props.initialItem?.title || ''); // Новое состояние для заголовка
-const error = ref(null);
-const errorMessage = ref('');
-
 const closeModal = () => {
   emit('close');
 };
 
 const handleSubmit = async () => {
-  error.value = null; // Сброс предыдущих ошибок
-  errorMessage.value = ''; // Сброс предыдущих сообщений об ошибках
-
-  if (!title.value.trim() && !content.value.trim()) {
-    error.value = 'Пожалуйста, добавьте заголовок или содержимое.';
+  if (!title.value.trim()) {
+    errorMessage.value = 'Название не может быть пустым.';
     return;
   }
+  errorMessage.value = '';
+
+  const itemData = {
+    title: title.value,
+    description: description.value,
+  };
 
   try {
     if (props.itemToEdit) {
       await listsStore.updateItem(props.itemToEdit.id, itemData);
-    if (props.initialItem) {
-      // Обновление существующего элемента
-      await store.updateItem(props.initialItem.id, { 
-        title: title.value,
-        description: content.value,
-      });
     } else {
       await listsStore.addItem(props.listId, itemData);
-      // Добавление нового элемента
-      await store.addItem(props.listId, {
-        title: title.value,
-        description: content.value,
-      });
     }
     closeModal();
   } catch (error) {
     errorMessage.value = listsStore.error || 'Произошла ошибка.';
   }
 };
-    
-    closeModal();
-  } catch (e) {
-    console.error('Error during item submission:', e);
-    error.value = store.error || 'Не удалось сохранить элемент.';
-    errorMessage.value = store.error || 'Произошла ошибка при сохранении.'; // Устанавливаем errorMessage
-  }
-};
-
-// Убедимся, что контент обновляется, если initialItem изменяется (например, при открытии модального окна для другого элемента)
-watch(() => props.itemToEdit, (newItem) => {
-  if (newItem) {
-    title.value = newItem.title || '';
-    content.value = newItem.description || '';
-  } else {
-    title.value = '';
-    content.value = '';
-  }
-}, { immediate: true });
-
 </script>
 
+<!-- Вот недостающий блок <template> -->
 <template>
   <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
@@ -221,6 +142,7 @@ watch(() => props.itemToEdit, (newItem) => {
   </div>
 </template>
 
+
 <style scoped>
 /* Стили остаются без изменений */
 .modal-overlay {
@@ -251,38 +173,6 @@ watch(() => props.itemToEdit, (newItem) => {
   position: absolute;
   top: 10px;
   right: 15px;
-  font-size: 2rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #888;
-}
-.modal-body {
-  flex-grow: 1; /* Позволяем телу модального окна занимать все доступное пространство */
-  overflow-y: auto; /* Добавляем вертикальную прокрутку при переполнении */
-  padding-right: 1rem; /* Компенсация для прокрутки, чтобы контент не прилипал к краю */
-  margin-right: -1rem; /* Скрываем избыточный отступ для прокрутки */
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color, #eee);
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-}
-
-.modal-header h2 {
-  margin: 0;
-}
-
-.modal-header h2.editing-title {
-  color: var(--primary-color, #007bff); /* Пример стиля: изменить цвет для выделения */
-  /* Можно добавить другие стили, например, font-weight или border-bottom */
-}
-
-.close-button {
   background: none;
   border: none;
   font-size: 2rem;
@@ -310,19 +200,6 @@ h2 {
   margin-bottom: 0.5rem;
   font-weight: bold;
   color: #4B0082;
-}
-
-/* Стили для полей ввода заголовка и обычных текстовых полей */
-.form-group input[type="text"],
-.form-group textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: 4px;
-  background-color: var(--card-bg-color, #fff);
-  color: var(--text-color, #333);
-  box-sizing: border-box; /* Важно для корректной ширины с padding */
-  margin-top: 0.5rem; /* Отступ сверху для лучшей читаемости */
 }
 
 .form-group input[type="text"] {

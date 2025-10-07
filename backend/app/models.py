@@ -17,6 +17,11 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     
+    # Добавляем новые поля
+    nickname = Column(String, unique=True, index=True, nullable=True)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    
     lists = relationship("List", back_populates="owner", cascade="all, delete-orphan")
 
 

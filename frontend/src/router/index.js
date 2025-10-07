@@ -7,6 +7,8 @@ import Register from '../views/Register.vue'
 import ListView from '../views/ListView.vue'
 // Импортируем новый компонент публичной страницы
 import PublicListView from '../views/PublicListView.vue'
+import PublicListsFeed from '../views/PublicListsFeed.vue'
+import Profile from '../views/Profile.vue' // Импортируем новый компонент профиля
 
 const routes = [
   {
@@ -30,6 +32,19 @@ const routes = [
     component: PublicListView,
     props: true // Передаем :publicKey как пропс
     // Этот роут не требует аутентификации (нет meta: { requiresAuth: true })
+  },
+  // Новый маршрут для ленты публичных списков
+  {
+    path: '/public/feed',
+    name: 'PublicListsFeed',
+    component: PublicListsFeed
+  },
+  // Новый маршрут для страницы профиля
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: Profile,
+    meta: { requiresAuth: true } // Страница профиля требует аутентификации
   },
   {
     path: '/login',

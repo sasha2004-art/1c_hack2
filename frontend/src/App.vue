@@ -2,9 +2,14 @@
   <div id="app-wrapper">
     <header class="app-header" v-if="authStore.token">
       <nav class="nav-container">
-        <router-link to="/" class="nav-logo">Plotix</router-link>
+        <div class="nav-left">
+          <router-link to="/" class="nav-logo">Plotix</router-link>
+          <router-link to="/public/feed" class="btn btn-primary nav-feed-btn">Лента</router-link>
+        </div>
         <div class="nav-user-info">
-          <span v-if="authStore.user">{{ authStore.user.email }}</span>
+          <router-link v-if="authStore.user" to="/profile" class="user-email-link">
+            {{ authStore.user.nickname || authStore.user.email }}
+          </router-link>
           <button @click="authStore.logout()" class="btn btn-secondary">Выйти</button>
         </div>
       </nav>
@@ -90,11 +95,22 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem; /* Отступ между логотипом и кнопкой "Лента" */
+}
+
 .nav-logo {
   font-size: 1.5rem;
   font-weight: bold;
-  /* ИЗМЕНЕНИЕ: Цвет логотипа теперь берется из CSS переменной */
   color: var(--text-color, #333);
+  margin-right: 1.5rem; /* Добавляем отступ справа от логотипа */
+}
+
+.nav-feed-btn {
+  margin-right: auto; /* Сдвигает кнопку "Лента" влево */
+  margin-left: 0.5rem; /* Небольшой отступ от логотипа */
 }
 
 .nav-user-info {
@@ -109,7 +125,20 @@ onMounted(() => {
   color: var(--text-color, #333);
 }
 
-.nav-user-info .btn {
-  padding: 0.5rem 1rem;
+.user-email-link {
+  font-weight: 600; /* Делаем шрифт чуть жирнее */
+  color: var(--text-color, #333);
+  text-decoration: none;
+  transition: color 0.3s ease, text-decoration 0.3s ease; /* Добавляем плавный переход */
+}
+
+.user-email-link:hover {
+  color: var(--primary-color, #007bff); /* Изменяем цвет при наведении на основной */
+  text-decoration: underline;
+}
+
+.nav-container .btn {
+  padding: 0.7rem 1.5rem; /* Применяем общий padding для всех кнопок в nav-container */
+  font-size: 1rem;
 }
 </style>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from uuid import UUID # Импортируем UUID
@@ -8,13 +8,24 @@ from .models import ListType, PrivacyLevel, ThemeName # Импортируем �
 
 class UserBase(BaseModel):
     email: EmailStr
+    # Добавляем новые поля
+    nickname: Optional[str] = Field(None, max_length=25) # Ограничение до 25 символов
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
 
+class UserUpdate(UserBase):
+    # Схема для обновления пользователя - все поля необязательны
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None # Можно обновлять пароль
+
 class UserRead(UserBase):
     id: int
     is_active: bool
+    # Новые поля уже в UserBase, так что здесь они будут унаследованы
+
     class Config:
         from_attributes = True
 

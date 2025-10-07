@@ -8,9 +8,33 @@ from . import models, schemas, security
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+def get_user_by_nickname(db: Session, nickname: str):
+    return db.query(models.User).filter(models.User.nickname == nickname).first()
+
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = security.get_password_hash(user.password)
     db_user = models.User(email=user.email, hashed_password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def delete_user(db: Session, user_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+    return db_user
+
+def update_user(db: Session, user_id: int, user_update: schemas.UserUpdate):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        return None
+
+    update_data = user_update.model_dump(exclude_unset=True) # Получаем только те поля, которые были установлены
+    for key, value in update_data.items():
+        setattr(db_user, key, value)
+    
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -38,6 +62,9 @@ def create_user_list(db: Session, list_data: schemas.ListCreate, user_id: int) -
     db.commit()
     db.refresh(db_list)
     return db_list
+
+def get_public_lists(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.List).filter(models.List.privacy_level == models.PrivacyLevel.PUBLIC).offset(skip).limit(limit).all()
 
 def update_list(db: Session, db_list: models.List, list_data: schemas.ListUpdate) -> models.List:
     """Обновить существующий список."""

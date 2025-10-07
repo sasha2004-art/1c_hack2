@@ -23,3 +23,12 @@ def read_public_list(public_key: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This list is not public")
         
     return db_list
+
+@router.get("/feed", response_model=list[schemas.ListPublicRead])
+def read_public_lists_feed(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """
+    Получение всех публичных списков для ленты.
+    Не требует аутентификации.
+    """
+    public_lists = crud.get_public_lists(db, skip=skip, limit=limit)
+    return public_lists

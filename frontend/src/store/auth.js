@@ -72,6 +72,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateUser(userData) {
+    try {
+      error.value = null;
+      const response = await apiClient.put('/users/me', userData);
+      user.value = response.data; // Обновляем данные пользователя в сторе
+      return true; // Успешно обновлено
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Failed to update profile';
+      console.error('Error updating user:', e);
+      return false; // Ошибка обновления
+    }
+  }
+
   function logout() {
     setToken(null);
     user.value = null;
@@ -79,5 +92,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Убираем apiClient из возвращаемого объекта
-  return { token, user, error, register, login, logout, fetchUser, setToken };
+  return { token, user, error, register, login, logout, fetchUser, setToken, updateUser };
 });

@@ -18,6 +18,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     
     lists = relationship("List", back_populates="owner", cascade="all, delete-orphan")
+    # Связь с бронированиями пользователя
+    reservations = relationship("Reservation", back_populates="reserver", cascade="all, delete-orphan")
 
 
 class ListType(str, enum.Enum):
@@ -82,3 +84,24 @@ class Item(Base):
     
     list_id = Column(Integer, ForeignKey("lists.id"), nullable=False)
     list = relationship("List", back_populates="items")
+
+    # Связь один-к-одному с бронированием
+    reservation = relationship("Reservation", back_populates="item", uselist=False, cascade="all, delete-orphan")
+
+
+# Новая модель для бронирования
+class Reservation(Base):
+    """
+    Модель бронирования элемента вишлиста.
+    """
+    __tablename__ = "reservations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    item_id = Column(Integer, ForeignKey("items.id"), unique=True, nullable=False) # Элемент может быть забронирован только один раз
+    reserver_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    item = relationship("Item", back_populates="reservation")
+    reserver = relationship("User", back_populates="reservations")

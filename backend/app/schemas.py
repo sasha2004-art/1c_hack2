@@ -1,10 +1,10 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
 from datetime import datetime
-from uuid import UUID # Импортируем UUID
-from .models import ListType, PrivacyLevel, ThemeName # Импортируем новый Enum
+from uuid import UUID
+from .models import ListType, PrivacyLevel, ThemeName
 
-# --- Схемы для пользователя --- (без изменений)
+# --- Схемы для пользователя ---
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -18,12 +18,11 @@ class UserRead(UserBase):
     class Config:
         from_attributes = True
 
-# --- Схемы для элементов списка --- (ИЗМЕНЕНЫ)
+# --- Схемы для элементов списка ---
 
 class ItemBase(BaseModel):
     title: str
     description: Optional[str] = None
-    # Поле details удалено
 
 class ItemCreate(ItemBase):
     pass
@@ -31,7 +30,6 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    # Поле details удалено
 
 class ItemRead(ItemBase):
     id: int
@@ -40,7 +38,14 @@ class ItemRead(ItemBase):
     updated_at: Optional[datetime] = None
     class Config:
         from_attributes = True
-        
+
+# Новая схема для публичного отображения элемента со статусом бронирования
+class ItemPublicRead(ItemBase):
+    id: int
+    is_reserved: bool = False # По умолчанию не забронировано
+    class Config:
+        from_attributes = True
+
 # --- Схемы для списков ---
 
 class ListBase(BaseModel):
@@ -48,7 +53,6 @@ class ListBase(BaseModel):
     description: Optional[str] = None
     list_type: ListType = ListType.WISHLIST
     privacy_level: PrivacyLevel = PrivacyLevel.PRIVATE
-    # Заменяем старые поля на новое
     theme_name: ThemeName = ThemeName.DEFAULT
 
 class ListCreate(ListBase):
@@ -59,22 +63,33 @@ class ListUpdate(BaseModel):
     description: Optional[str] = None
     list_type: Optional[ListType] = None
     privacy_level: Optional[PrivacyLevel] = None
-    # Добавляем новое поле для обновления
     theme_name: Optional[ThemeName] = None
 
 class ListRead(ListBase):
     id: int
     owner_id: int
-    public_url_key: UUID # Добавляем публичный ключ
+    public_url_key: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
-    items: list[ItemRead] = []
+    items: List[ItemRead] = []
     class Config:
         from_attributes = True
 
-# Новая схема для публичного отображения
+# Новая схема для публичного отображения списка с публичными элементами
 class ListPublicRead(ListBase):
     id: int
-    items: list[ItemRead] = []
+    items: List[ItemPublicRead] = []
+    class Config:
+        from_attributes = True
+
+# --- Схемы для бронирования ---
+
+# Схема для отображения бронирования в списке пользователя
+class ReservationRead(BaseModel):
+    id: int
+    item_id: int
+    item: ItemRead # Включаем полную информацию об элементе
+    created_at: datetime
+
     class Config:
         from_attributes = True

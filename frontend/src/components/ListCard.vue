@@ -12,6 +12,14 @@
       </div>
       <!-- ИЗМЕНЕНИЕ: Добавлены кнопки, которые вызывают события -->
       <div class="card-actions">
+        <!-- НОВАЯ КНОПКА "ПОДЕЛИТЬСЯ" -->
+        <button 
+          v-if="list.privacy_level === 'public'" 
+          @click.stop="copyPublicLink" 
+          class="action-btn share-btn" 
+          title="Скопировать публичную ссылку">
+          🔗
+        </button>
         <button @click.stop="$emit('edit', list)" class="action-btn" title="Редактировать">✏️</button>
         <button @click.stop="$emit('delete', list.id)" class="action-btn" title="Удалить">🗑️</button>
       </div>
@@ -61,6 +69,20 @@ const translatedPrivacy = computed(() => privacyTranslations[props.list.privacy_
 
 const navigateToList = () => {
   router.push({ name: 'ListView', params: { id: props.list.id } });
+};
+
+// НОВАЯ ФУНКЦИЯ ДЛЯ КОПИРОВАНИЯ ССЫЛКИ
+const copyPublicLink = () => {
+  const publicKey = props.list.public_url_key;
+  // window.location.origin дает нам "http://localhost" или домен сайта в продакшене
+  const publicUrl = `${window.location.origin}/public/lists/${publicKey}`;
+  
+  navigator.clipboard.writeText(publicUrl).then(() => {
+    alert('Публичная ссылка скопирована в буфер обмена!');
+  }).catch(err => {
+    console.error('Не удалось скопировать ссылку: ', err);
+    alert('Не удалось скопировать ссылку.');
+  });
 };
 </script>
 
@@ -148,5 +170,9 @@ const navigateToList = () => {
 
 .action-btn:hover {
   opacity: 1;
+}
+
+.share-btn {
+  font-size: 1.1rem; /* Можно настроить размер иконки */
 }
 </style>

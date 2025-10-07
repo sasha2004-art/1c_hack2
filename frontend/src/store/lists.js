@@ -4,7 +4,8 @@ import { apiClient } from './auth'; // Импортируем настроенн
 
 export const useListsStore = defineStore('lists', () => {
   const lists = ref([]);
-  const currentList = ref(null); // Новое состояние для текущего открытого списка
+  const currentList = ref(null);
+  const userReservations = ref([]); // Новое состояние для бронирований
   const isLoading = ref(false);
   const error = ref(null);
 
@@ -22,7 +23,6 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // Новая функция для загрузки одного списка
   async function fetchListById(listId) {
     isLoading.value = true;
     error.value = null;
@@ -37,14 +37,14 @@ export const useListsStore = defineStore('lists', () => {
       isLoading.value = false;
     }
   }
-
-  // Новая функция для получения публичного списка
+  
+  // Функция обновлена для сброса userReservations
   async function fetchPublicListByKey(publicKey) {
     isLoading.value = true;
     error.value = null;
-    currentList.value = null; // Сбрасываем текущий список
+    currentList.value = null; 
+    userReservations.value = []; // Сбрасываем бронирования при загрузке нового списка
     try {
-      // Используем новый публичный эндпоинт без заголовков аутентификации
       const response = await apiClient.get(`/public/lists/${publicKey}`);
       currentList.value = response.data;
     } catch (e) {
@@ -94,8 +94,6 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // --- Новые функции для работы с элементами ---
-
   async function addItem(listId, itemData) {
     error.value = null;
     try {
@@ -141,19 +139,71 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
+  // --- Новые функции для работы с бронированием ---
+
+  async function fetchUserReservations() {
+    error.value = null;
+    try {
+      const response = await apiClient.get('/users/me/reservations');
+      userReservations.value = response.data;
+    } catch(e) {
+      error.value = 'Не удалось загрузить ваши бронирования.';
+      console.error(e);
+    }
+  }
+
+  // ИЗМЕНЕНИЕ: Добавляем publicKey как аргумент
+  async function reserveItem(itemId, publicKey) {
+    error.value = null;
+    try {
+      await apiClient.post(`/items/${itemId}/reserve`);
+      if (publicKey) {
+        // ИЗМЕНЕНИЕ: Используем переданный publicKey
+        await fetchPublicListByKey(publicKey); 
+        await fetchUserReservations();
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось забронировать элемент.';
+      console.error(e);
+      throw e;
+    }
+  }
+
+  // ИЗМЕНЕНИЕ: Добавляем publicKey как аргумент
+  async function unreserveItem(itemId, publicKey) {
+    error.value = null;
+    try {
+      await apiClient.delete(`/items/${itemId}/unreserve`);
+      if (publicKey) {
+        // ИЗМЕНЕНИЕ: Используем переданный publicKey
+        await fetchPublicListByKey(publicKey);
+        await fetchUserReservations();
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось снять бронь.';
+      console.error(e);
+      throw e;
+    }
+  }
+
+
   return { 
     lists, 
     currentList,
+    userReservations, // Экспортируем
     isLoading, 
     error, 
     fetchLists, 
     fetchListById,
-    fetchPublicListByKey, // Экспортируем новую функцию
+    fetchPublicListByKey,
     addList, 
     updateList, 
     deleteList,
     addItem,
     updateItem,
-    deleteItem
+    deleteItem,
+    fetchUserReservations, // Экспортируем
+    reserveItem,           // Экспортируем
+    unreserveItem          // Экспортируем
   };
 });

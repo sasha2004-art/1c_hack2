@@ -2,9 +2,10 @@
   <div id="app-wrapper">
     <header class="app-header" v-if="authStore.token">
       <nav class="nav-container">
-        <router-link to="/" class="nav-logo">Plotix</router-link>
-        <!-- (Задача 9.1) Новая ссылка -->
-        <router-link to="/friends" class="nav-link">Друзья</router-link>
+        <div class="nav-left">
+          <router-link to="/" class="nav-logo">Plotix</router-link>
+          <router-link to="/friends" class="btn btn-primary">Друзья</router-link>
+        </div>
         <div class="nav-user-info">
           <span v-if="authStore.user">{{ authStore.user.email }}</span>
           <NotificationBell /> <!-- Наш новый компонент -->
@@ -116,6 +117,16 @@ onMounted(() => {
   height: 60px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-left .btn {
+  padding: 0.5rem 1rem;
 }
 
 .nav-logo {

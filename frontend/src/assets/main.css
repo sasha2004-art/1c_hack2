@@ -1,9 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
 /* Global Styles */
 :root {
   /* Default Theme Variables - will be overridden by JS */
   --bg-color: #f4f7fa;
   --text-color: #333333;
-  --font-family: 'Arial', sans-serif;
+  --font-family: 'Montserrat', sans-serif;
+  --font-size-small: 0.875rem; /* 14px */
+  --font-size-medium: 1rem;    /* 16px */
+  --font-size-large: 1.25rem;  /* 20px */
   --bg-image: none;
   --card-bg-color: #ffffff;
   --border-color: #dee2e6;

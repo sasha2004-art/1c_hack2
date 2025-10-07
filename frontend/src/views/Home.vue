@@ -26,6 +26,7 @@
       v-if="isListModalVisible" 
       :initial-list="editingList"
       @close="closeListModal"
+      @list-updated="listsStore.fetchLists"
     />
   </div>
 </template>
@@ -53,6 +54,7 @@ const openListModal = (list = null) => {
 const closeListModal = () => {
   isListModalVisible.value = false;
   editingList.value = null;
+  listsStore.fetchLists(); // Добавляем вызов для обновления списков
 };
 
 const handleDeleteList = async (listId) => {

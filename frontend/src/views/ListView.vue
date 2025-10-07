@@ -46,6 +46,7 @@
       v-if="isSettingsModalVisible" 
       :initial-list="currentList"
       @close="closeSettingsModal"
+      @list-updated="listsStore.fetchListById(currentList.value.id)"
     />
 
     <Lightbox 
@@ -118,6 +119,9 @@ const openSettingsModal = () => {
 
 const closeSettingsModal = () => {
     isSettingsModalVisible.value = false;
+    if (currentList.value) {
+        listsStore.fetchListById(currentList.value.id);
+    }
 };
 
 const handleDeleteItem = async (itemId) => {

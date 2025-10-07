@@ -139,8 +139,18 @@ const handleSubmit = async () => {
   padding: 2rem;
   border-radius: 10px;
   width: 90%;
-  max-width: 700px; /* Увеличим ширину для редактора */
+  max-width: 900px;
+  max-height: 90vh; /* Максимальная высота 90% от высоты окна просмотра */
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  display: flex; /* Используем flexbox для компоновки внутри модального окна */
+  flex-direction: column;
+}
+
+.modal-body {
+  flex-grow: 1; /* Позволяем телу модального окна занимать все доступное пространство */
+  overflow-y: auto; /* Добавляем вертикальную прокрутку при переполнении */
+  padding-right: 1rem; /* Компенсация для прокрутки, чтобы контент не прилипал к краю */
+  margin-right: -1rem; /* Скрываем избыточный отступ для прокрутки */
 }
 
 .modal-header {
@@ -185,7 +195,7 @@ const handleSubmit = async () => {
 
 /* Стили для Quill Editor */
 .form-group :deep(.ql-editor) {
-  min-height: 200px;
+  min-height: 400px;
   background-color: var(--card-bg-color, #fff);
   color: var(--text-color, #333);
 }

@@ -8,6 +8,8 @@ export const useListsStore = defineStore('lists', () => {
   const userReservations = ref([]); // Новое состояние для бронирований
   const isLoading = ref(false);
   const error = ref(null);
+  // --- НОВОЕ СОСТОЯНИЕ ДЛЯ ХРАНЕНИЯ ДЕТАЛЕЙ ОШИБКИ ДОСТУПА ---
+  const listAccessErrorDetails = ref(null);
 
   async function fetchLists() {
     isLoading.value = true;
@@ -38,16 +40,27 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
   
-  // Функция обновлена для сброса userReservations
+  // --- ИЗМЕНЕНИЕ ЗДЕСЬ: обработка новой структуры ошибки ---
   async function fetchPublicListByKey(publicKey) {
     isLoading.value = true;
     error.value = null;
     currentList.value = null; 
+    listAccessErrorDetails.value = null; // Сбрасываем детали ошибки
     try {
       const response = await apiClient.get(`/public/lists/${publicKey}`);
       currentList.value = response.data;
     } catch (e) {
-      error.value = e.response?.data?.detail || 'Не удалось загрузить публичный список.';
+      const errorData = e.response?.data?.detail;
+      // Проверяем, пришел ли объект с 'owner'
+      if (typeof errorData === 'object' && errorData.owner) {
+        listAccessErrorDetails.value = errorData;
+        error.value = errorData.message;
+      } else if (typeof errorData === 'object' && errorData.message) {
+        error.value = errorData.message;
+      }
+      else {
+        error.value = errorData || 'Не удалось загрузить публичный список.';
+      }
       console.error(e);
     } finally {
       isLoading.value = false;
@@ -281,7 +294,8 @@ export const useListsStore = defineStore('lists', () => {
     currentList,
     userReservations, // Экспортируем
     isLoading, 
-    error, 
+    error,
+    listAccessErrorDetails, // <-- Экспортируем новое состояние
     fetchLists, 
     fetchListById,
     fetchPublicListByKey,

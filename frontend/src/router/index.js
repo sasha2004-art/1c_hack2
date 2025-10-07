@@ -11,12 +11,21 @@ import PublicListView from '../views/PublicListView.vue'
 import FriendsView from '../views/FriendsView.vue'
 // (Задача 8.1) Импортируем новый компонент
 import UserProfileView from '../views/UserProfileView.vue'
+// (Этап 11) Импортируем новый компонент ленты
+import FeedView from '../views/FeedView.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home,
+    meta: { requiresAuth: true }
+  },
+  // (Этап 11) Новый маршрут для ленты
+  {
+    path: '/feed',
+    name: 'Feed',
+    component: FeedView,
     meta: { requiresAuth: true }
   },
   // (Задача 7.2) Новый маршрут для страницы друзей

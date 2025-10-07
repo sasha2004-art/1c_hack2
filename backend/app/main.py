@@ -11,6 +11,8 @@ from .routers import auth, users, lists, items, public, reservations, interactio
 # (Новое) Импортируем роутер уведомлений
 from .routers import notifications
 from .routers import utils
+# (Этап 11) Импортируем роутер ленты
+from .routers import feed
 
 # Создаем все таблицы в БД, которые унаследованы от Base
 models.Base.metadata.create_all(bind=engine)
@@ -46,6 +48,8 @@ app.include_router(friends.router)
 # (Новое) Регистрируем роутер уведомлений
 app.include_router(notifications.router)
 app.include_router(utils.router)
+# (Этап 11) Регистрируем роутер ленты
+app.include_router(feed.router, prefix="/feed", tags=["feed"])
 
 
 @app.get("/")

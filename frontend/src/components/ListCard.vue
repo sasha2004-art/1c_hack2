@@ -12,12 +12,12 @@
       </div>
       <!-- ИЗМЕНЕНИЕ: Добавлены кнопки, которые вызывают события -->
       <div class="card-actions">
-        <!-- НОВАЯ КНОПКА "ПОДЕЛИТЬСЯ" -->
+        <!-- --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлено условие `|| list.privacy_level === 'friends_only'` --- -->
         <button 
-          v-if="list.privacy_level === 'public'" 
+          v-if="list.privacy_level === 'public' || list.privacy_level === 'friends_only'" 
           @click.stop="copyPublicLink" 
           class="action-btn share-btn" 
-          title="Скопировать публичную ссылку">
+          title="Скопировать ссылку для общего доступа">
           🔗
         </button>
         <button @click.stop="$emit('edit', list)" class="action-btn" title="Редактировать">✏️</button>

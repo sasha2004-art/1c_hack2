@@ -1,48 +1,78 @@
 <template>
-  <div class="public-list-view" v-if="list" :style="themeStyles">
+  <div class="public-list-view" :style="themeStyles">
     <div class="container">
-      <header class="list-header">
-        <h1>{{ list.title }}</h1>
-        <p v-if="list.description">{{ list.description }}</p>
-      </header>
+      <!-- --- ИЗМЕНЕНИЕ: Вся логика обернута в v-if/v-else-if --- -->
+      
+      <!-- 1. Состояние успешной загрузки -->
+      <div v-if="list">
+        <header class="list-header">
+          <h1>{{ list.title }}</h1>
+          <p v-if="list.description">{{ list.description }}</p>
+        </header>
 
-      <div v-if="isLoading" class="loader">Загрузка...</div>
-      <div v-if="error" class="error-message">{{ error }}</div>
-
-      <div class="items-grid" v-if="list.items && list.items.length > 0">
-        <div
-          v-for="item in list.items"
-          :key="item.id"
-          class="item-wrapper"
-        >
-          <ItemCard
-            :item="item"
-            :is-owner="isOwner"
-          />
-          <div class="public-actions">
-            <!-- --- НАЧАЛО ИЗМЕНЕНИЙ --- -->
-            <button
-              v-if="authStore.token && !isOwner"
-              class="btn btn-primary copy-button"
-              title="Копировать к себе"
-              @click="openCopyModal(item.id)"
-            >
-              <!-- Текст заменен на SVG иконку -->
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </button>
-            <!-- --- КОНЕЦ ИЗМЕНЕНИЙ --- -->
+        <div class="items-grid" v-if="list.items && list.items.length > 0">
+          <div
+            v-for="item in list.items"
+            :key="item.id"
+            class="item-wrapper"
+          >
+            <ItemCard
+              :item="item"
+              :is-owner="isOwner"
+            />
+            <div class="public-actions">
+              <button
+                v-if="authStore.token && !isOwner"
+                class="btn btn-primary copy-button"
+                title="Копировать к себе"
+                @click="openCopyModal(item.id)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
+        <div v-else class="empty-list-message">
+          В этом списке пока нет элементов.
+        </div>
       </div>
-       <div v-else class="empty-list-message">
-        В этом списке пока нет элементов.
+
+      <!-- 2. Состояние ошибки (включая ошибку доступа) -->
+      <div v-else-if="!isLoading && (error || listAccessErrorDetails)" class="access-denied-container">
+        <!-- 2.1 Частный случай: Ошибка доступа к списку друзей -->
+        <div v-if="listAccessErrorDetails && listAccessErrorDetails.owner">
+          <h2 class="access-denied-title">Доступ ограничен 🔒</h2>
+          <p>Этот список доступен только друзьям пользователя <strong>{{ listAccessErrorDetails.owner.name }}</strong>.</p>
+          
+          <div v-if="authStore.token" class="friend-request-actions">
+            <button v-if="!requestSent" @click="handleSendFriendRequest" class="btn btn-primary">
+              Отправить заявку в друзья
+            </button>
+            <div v-else class="request-sent-message">
+              ✅ Запрос отправлен!
+            </div>
+          </div>
+          <p v-else>
+            <router-link to="/login">Войдите в свой аккаунт</router-link>, чтобы добавить пользователя в друзья.
+          </p>
+        </div>
+        <!-- 2.2 Общий случай: любая другая ошибка -->
+        <div v-else>
+          <h2 class="access-denied-title">Произошла ошибка</h2>
+          <p>{{ error }}</p>
+          <router-link to="/" class="btn btn-secondary">Вернуться на главную</router-link>
+        </div>
       </div>
+
+      <!-- 3. Состояние загрузки -->
+      <div v-else-if="isLoading" class="loader">Загрузка...</div>
+
     </div>
   </div>
 
-  <!-- Этап 10: Модалка выбора списка для копирования -->
+  <!-- Модальное окно копирования (без изменений) -->
   <div v-if="isCopyModalVisible" class="modal-overlay" @click.self="closeCopyModal">
     <div class="modal-content">
       <h3>Скопировать желание в...</h3>
@@ -73,14 +103,17 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useListsStore } from '@/store/lists';
 import { useAuthStore } from '@/store/auth';
+import { useFriendsStore } from '@/store/friends'; // <-- Импортируем friends store
 import { themes } from '@/themes.js';
 import ItemCard from '@/components/ItemCard.vue';
 
 const route = useRoute();
 const listsStore = useListsStore();
 const authStore = useAuthStore();
+const friendsStore = useFriendsStore(); // <-- Получаем экземпляр
 
 const publicKey = ref(route.params.publicKey);
+const requestSent = ref(false); // <-- Новое состояние для кнопки "Добавить в друзья"
 
 // --- Жизненный цикл ---
 onMounted(async () => {
@@ -100,6 +133,7 @@ onMounted(async () => {
 const list = computed(() => listsStore.currentList);
 const isLoading = computed(() => listsStore.isLoading);
 const error = computed(() => listsStore.error);
+const listAccessErrorDetails = computed(() => listsStore.listAccessErrorDetails);
 const currentUser = computed(() => authStore.user);
 const userReservations = computed(() => listsStore.userReservations);
 const userLists = computed(() => listsStore.lists);
@@ -120,7 +154,18 @@ const themeStyles = computed(() => {
     return themes.default.styles;
 });
 
-// --- Методы ---
+// --- НОВАЯ ФУНКЦИЯ ДЛЯ ОТПРАВКИ ЗАЯВКИ В ДРУЗЬЯ ---
+const handleSendFriendRequest = async () => {
+  if (!listAccessErrorDetails.value?.owner?.id) return;
+  
+  const ownerId = listAccessErrorDetails.value.owner.id;
+  try {
+    await friendsStore.sendFriendRequest(ownerId);
+    requestSent.value = true; // Меняем состояние кнопки на "Запрос отправлен"
+  } catch (err) {
+    alert(friendsStore.error || 'Не удалось отправить запрос.');
+  }
+};
 
 // Проверяем, забронирован ли элемент текущим пользователем
 const isReservedByMe = (itemId) => {
@@ -314,6 +359,49 @@ const handleUnreserve = async (itemId) => {
 }
 /* --- КОНЕЦ НОВЫХ СТИЛЕЙ --- */
 
+/* --- НОВЫЕ СТИЛИ ДЛЯ СТРАНИЦЫ ОШИБКИ --- */
+.access-denied-container {
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  padding: 3rem 2rem;
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.access-denied-title {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+.access-denied-container p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+.friend-request-actions {
+  margin-top: 1rem;
+}
+.request-sent-message {
+  font-weight: bold;
+  color: #28a745; /* Зеленый цвет для успеха */
+  font-size: 1.2rem;
+}
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+}
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: #fff;
+}
 
 /* Этап 10: стили модалки копирования */
 .modal-overlay {

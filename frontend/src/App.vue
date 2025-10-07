@@ -4,6 +4,8 @@
       <nav class="nav-container">
         <div class="nav-left">
           <router-link to="/" class="nav-logo">Plotix</router-link>
+          <!-- (Этап 11) Новая ссылка на ленту -->
+          <router-link to="/feed" class="btn btn-primary">Лента</router-link>
           <router-link to="/friends" class="btn btn-primary">Друзья</router-link>
         </div>
         <div class="nav-user-info">

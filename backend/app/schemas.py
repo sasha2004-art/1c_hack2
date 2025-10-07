@@ -75,6 +75,7 @@ class NotificationsResponse(BaseModel):
 class PublicListForProfile(BaseModel):
     """Упрощенная схема списка для отображения в профиле."""
     id: int
+    public_url_key: UUID # <--- ДОБАВЛЕНО ПОЛЕ
     title: str
     list_type: ListType
     privacy_level: PrivacyLevel
@@ -188,6 +189,17 @@ class ListPublicRead(ListBase):
     id: int
     owner: UserInComment  # <--- ДОБАВЛЕНО ЭТО ПОЛЕ
     items: List[ItemPublicRead] = []
+    class Config:
+        from_attributes = True
+
+# --- (Этап 11) Новая схема для ленты ---
+class ListForFeedRead(ListBase):
+    id: int
+    public_url_key: UUID # <--- ДОБАВЛЕНО ПОЛЕ
+    owner: UserInComment # Включаем информацию о владельце
+    created_at: datetime
+    items_count: int = 0 # Включаем количество элементов для контекста
+
     class Config:
         from_attributes = True
 

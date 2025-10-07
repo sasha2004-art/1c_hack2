@@ -372,3 +372,49 @@ def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -
         db.refresh(db_notification)
         return db_notification
     return None
+
+# --- (Этап 11) CRUD для Ленты ---
+def get_friends_feed_lists(db: Session, user_id: int, skip: int = 0, limit: int = 10) -> TypingList[models.List]:
+    """
+    Получает ленту списков от друзей пользователя.
+    Включает публичные списки и списки "только для друзей".
+    Сортировка по дате создания (новые сверху).
+    """
+    # 1. Найти всех друзей пользователя
+    friendships = db.query(models.Friendship).filter(
+        (models.Friendship.status == models.FriendshipStatus.ACCEPTED) &
+        or_(
+            models.Friendship.requester_id == user_id,
+            models.Friendship.addressee_id == user_id
+        )
+    ).all()
+
+    friend_ids = set()
+    for fs in friendships:
+        if fs.requester_id == user_id:
+            friend_ids.add(fs.addressee_id)
+        else:
+            friend_ids.add(fs.requester_id)
+
+    if not friend_ids:
+        return []
+
+    # 2. Найти все списки этих друзей, которые являются public или friends_only
+    lists = db.query(models.List).options(
+        joinedload(models.List.owner),
+        joinedload(models.List.items) # Загружаем элементы, чтобы посчитать их
+    ).filter(
+        models.List.owner_id.in_(friend_ids),
+        or_(
+            models.List.privacy_level == models.PrivacyLevel.PUBLIC,
+            models.List.privacy_level == models.PrivacyLevel.FRIENDS_ONLY
+        )
+    ).order_by(
+        models.List.created_at.desc()
+    ).offset(
+        skip
+    ).limit(
+        limit
+    ).all()
+
+    return lists

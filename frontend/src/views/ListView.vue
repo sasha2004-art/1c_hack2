@@ -42,7 +42,7 @@
         :item="item"
         :listType="currentList.list_type"
         :isOwner="isOwner"
-        :listOwnerId="currentList.owner_id" <!-- <-- ПЕРЕДАЕМ ID ВЛАДЕЛЬЦА -->
+        :listOwnerId="currentList.owner_id"
         @edit-item="openEditItemModal"
         @delete-item="handleDeleteItem"
         @reserve-item="handleReserve"

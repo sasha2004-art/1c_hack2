@@ -13,14 +13,13 @@
             <QuillEditor 
               v-model:content="content"
               theme="snow"
-              toolbar="full"
+              :toolbar="[
+                ['bold', 'italic', 'underline', 'strike'],
+                ['image'],
+              ]"
               contentType="html"
               placeholder="Напишите заголовок (он будет выделен) и описание..."
             />
-          </div>
-          <div class="form-group">
-            <label for="image">Изображение (опционально)</label>
-            <input type="file" id="image" accept="image/*" @change="handleFileChange" class="file-input">
           </div>
           <div class="modal-footer">
             <button type="button" @click="closeModal" class="btn-cancel">Отмена</button>
@@ -34,7 +33,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useListsStore } from '@/store/lists';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
@@ -52,14 +51,9 @@ const store = useListsStore();
 // Единое состояние для всего контента
 const content = ref('');
 const error = ref(null);
-const selectedFile = ref(null);
 
 const closeModal = () => {
   emit('close');
-};
-
-const handleFileChange = (event) => {
-  selectedFile.value = event.target.files[0];
 };
 
 // Функция для парсинга HTML и извлечения заголовка
@@ -99,16 +93,13 @@ const handleSubmit = async () => {
   try {
     const newItem = await store.addItem(props.listId, parsedData);
     
-    // Если файл выбран, загружаем его
-    if (selectedFile.value) {
-      await store.uploadItemImage(newItem.id, selectedFile.value);
-    }
     
     closeModal();
   } catch (e) {
     error.value = store.error || 'Не удалось создать элемент.';
   }
 };
+
 </script>
 
 <style scoped>

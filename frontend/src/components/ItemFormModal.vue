@@ -2,11 +2,15 @@
   <div class="modal-backdrop" @click.self="closeModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>{{ props.initialItem ? 'Редактировать элемент' : 'Добавить новый элемент' }}</h2>
+        <h2 :class="{'editing-title': props.initialItem}">{{ props.initialItem ? 'Редактировать элемент' : 'Добавить новый элемент' }}</h2>
         <button @click="closeModal" class="close-button">&times;</button>
       </div>
       <div class="modal-body">
         <form @submit.prevent="handleSubmit">
+          <div class="form-group">
+            <label for="title">Заголовок</label>
+            <input type="text" id="title" v-model="title" placeholder="Введите заголовок элемента">
+          </div>
           <div class="form-group">
             <label>Содержимое</label>
             <!-- Единственное поле ввода - редактор Quill -->
@@ -54,43 +58,42 @@ const store = useListsStore();
 
 // Единое состояние для всего контента
 const content = ref(props.initialItem?.description || '');
+const title = ref(props.initialItem?.title || ''); // Новое состояние для заголовка
 const error = ref(null);
 
 const closeModal = () => {
   emit('close');
 };
 
-// Функция для парсинга HTML и извлечения заголовка
-const parseContent = (htmlContent) => {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
+// Функция для парсинга HTML и извлечения заголовка - УДАЛЕНО
+// const parseContent = (htmlContent) => {
+//   const tempDiv = document.createElement('div');
+//   tempDiv.innerHTML = htmlContent;
 
-  const heading = tempDiv.querySelector('h1, h2, h3, h4, h5, h6');
-  let title = '';
+//   const heading = tempDiv.querySelector('h1, h2, h3, h4, h5, h6');
+//   let title = '';
   
-  if (heading) {
-    // Ограничиваем длину извлеченного заголовка
-    title = heading.innerText.trim().substring(0, 150);
-    heading.parentNode.removeChild(heading);
-  } else {
-    // Ограничиваем длину заголовка из обычного текста
-    title = tempDiv.innerText.trim().substring(0, 150) || '(Без названия)';
-  }
+//   if (heading) {
+//     title = heading.innerText.trim().substring(0, 150);
+//     heading.parentNode.removeChild(heading);
+//   } else {
+//     title = tempDiv.innerText.trim().substring(0, 150) || '(Без названия)';
+//   }
 
-  const description = tempDiv.innerHTML.trim();
+//   const description = tempDiv.innerHTML.trim();
 
-  if (!title && !description) return null;
+//   if (!title && !description) return null;
 
-  return { title, description };
-};
+//   return { title, description };
+// };
 
 
 const handleSubmit = async () => {
   error.value = null;
-  const parsedData = parseContent(content.value);
+  // const parsedData = parseContent(content.value); // Больше не нужно
 
-  if (!parsedData) {
-    error.value = 'Пожалуйста, добавьте содержимое.';
+  if (!title.value.trim() && !content.value.trim()) {
+    error.value = 'Пожалуйста, добавьте заголовок или содержимое.';
     return;
   }
 
@@ -98,16 +101,20 @@ const handleSubmit = async () => {
     if (props.initialItem) {
       // Обновление существующего элемента
       await store.updateItem(props.initialItem.id, { 
-        title: parsedData.title,
-        description: parsedData.description,
+        title: title.value,
+        description: content.value,
       });
     } else {
       // Добавление нового элемента
-      await store.addItem(props.listId, parsedData);
+      await store.addItem(props.listId, {
+        title: title.value,
+        description: content.value,
+      });
     }
     
     closeModal();
   } catch (e) {
+    console.error('Error during item submission:', e);
     error.value = store.error || 'Не удалось сохранить элемент.';
   }
 };
@@ -166,6 +173,11 @@ const handleSubmit = async () => {
   margin: 0;
 }
 
+.modal-header h2.editing-title {
+  color: var(--primary-color, #007bff); /* Пример стиля: изменить цвет для выделения */
+  /* Можно добавить другие стили, например, font-weight или border-bottom */
+}
+
 .close-button {
   background: none;
   border: none;
@@ -182,6 +194,19 @@ const handleSubmit = async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
+}
+
+/* Стили для полей ввода заголовка и обычных текстовых полей */
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background-color: var(--card-bg-color, #fff);
+  color: var(--text-color, #333);
+  box-sizing: border-box; /* Важно для корректной ширины с padding */
+  margin-top: 0.5rem; /* Отступ сверху для лучшей читаемости */
 }
 
 .file-input {

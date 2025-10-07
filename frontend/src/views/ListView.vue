@@ -39,7 +39,7 @@
       v-if="isItemModalVisible" 
       :initial-item="editingItem"
       :list-id="currentList.id"
-      @close="closeItemModal" 
+      @close="closeItemModal"
     />
 
     <ListFormModal 
@@ -104,13 +104,18 @@ const isLightboxVisible = ref(false);
 const selectedImageUrl = ref('');
 
 const openItemModal = (item) => {
+  console.log('Opening Item Modal in ListView.vue', item);
   editingItem.value = item;
   isItemModalVisible.value = true;
 };
 
 const closeItemModal = () => {
+  console.log('Closing Item Modal in ListView.vue');
   isItemModalVisible.value = false;
   editingItem.value = null;
+  // if (currentList.value) {
+  //   listsStore.fetchListById(currentList.value.id);
+  // }
 };
 
 const openSettingsModal = () => {

@@ -215,5 +215,5 @@ class Notification(Base):
     sender = relationship("User", foreign_keys=[sender_id])
 
     # С каким элементом связано уведомление (необязательно)
-    related_item_id = Column(Integer, ForeignKey("items.id"), nullable=True)
+    related_item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=True)
     related_item = relationship("Item")

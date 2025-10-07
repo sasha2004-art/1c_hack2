@@ -59,7 +59,15 @@ const closeListModal = () => {
 
 const handleDeleteList = async (listId) => {
     if(confirm('Вы уверены, что хотите удалить этот список со всеми элементами?')) {
-        await listsStore.deleteList(listId);
+        try {
+            await listsStore.deleteList(listId);
+            // Обновляем список списков после успешного удаления
+            listsStore.fetchLists();
+        } catch (error) {
+            console.error('Ошибка при удалении списка:', error);
+            // Дополнительная обработка ошибок, если необходимо
+            alert('Не удалось удалить список. Пожалуйста, попробуйте еще раз.');
+        }
     }
 }
 

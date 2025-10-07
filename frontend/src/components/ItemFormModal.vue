@@ -1,37 +1,41 @@
 <template>
-  <div class="modal-backdrop" @click.self="closeModal">
+  <!-- 2. v-if управляет видимостью всего компонента -->
+  <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h2 :class="{'editing-title': props.initialItem}">{{ props.initialItem ? 'Редактировать элемент' : 'Добавить новый элемент' }}</h2>
-        <button @click="closeModal" class="close-button">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label for="title">Заголовок</label>
-            <input type="text" id="title" v-model="title" placeholder="Введите заголовок элемента">
-          </div>
-          <div class="form-group">
-            <label>Содержимое</label>
-            <!-- Единственное поле ввода - редактор Quill -->
-            <QuillEditor 
-              v-model:content="content"
-              theme="snow"
-              :toolbar="[
-                ['bold', 'italic', 'underline', 'strike'],
-                ['image'],
-              ]"
-              contentType="html"
-              placeholder="Напишите заголовок (он будет выделен) и описание..."
-            />
-          </div>
-          <div class="modal-footer">
-            <button type="button" @click="closeModal" class="btn-cancel">Отмена</button>
-            <button type="submit" class="btn-submit">Добавить</button>
-          </div>
-          <p v-if="error" class="error-message">{{ error }}</p>
-        </form>
-      </div>
+      <button class="modal-close" @click="closeModal">&times;</button>
+      <h2>{{ itemToEdit ? 'Редактировать желание' : 'Добавить новое желание' }}</h2>
+
+      <form @submit.prevent="handleSubmit">
+        <div class="form-group">
+          <label for="item-title">Название</label>
+          <input
+            id="item-title"
+            type="text"
+            v-model="title"
+            placeholder="Например, 'Поездка в горы'"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="item-description">Описание</label>
+          <QuillEditor
+            v-model:content="content"
+            contentType="html"
+            :options="quillOptions"
+            style="min-height: 150px; display: flex; flex-direction: column;"
+          />
+        </div>
+
+        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
+          <button type="submit" class="btn-primary">
+            {{ itemToEdit ? 'Сохранить' : 'Добавить' }}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
@@ -60,9 +64,6 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const listsStore = useListsStore();
-const title = ref('');
-const description = ref('');
-const errorMessage = ref('');
 
 const quillOptions = {
   theme: 'snow',
@@ -120,50 +121,20 @@ const store = useListsStore();
 const content = ref(props.initialItem?.description || '');
 const title = ref(props.initialItem?.title || ''); // Новое состояние для заголовка
 const error = ref(null);
+const errorMessage = ref('');
 
 const closeModal = () => {
   emit('close');
 };
 
-// Функция для парсинга HTML и извлечения заголовка - УДАЛЕНО
-// const parseContent = (htmlContent) => {
-//   const tempDiv = document.createElement('div');
-//   tempDiv.innerHTML = htmlContent;
-
-//   const heading = tempDiv.querySelector('h1, h2, h3, h4, h5, h6');
-//   let title = '';
-  
-//   if (heading) {
-//     title = heading.innerText.trim().substring(0, 150);
-//     heading.parentNode.removeChild(heading);
-//   } else {
-//     title = tempDiv.innerText.trim().substring(0, 150) || '(Без названия)';
-//   }
-
-//   const description = tempDiv.innerHTML.trim();
-
-//   if (!title && !description) return null;
-
-//   return { title, description };
-// };
-
-
 const handleSubmit = async () => {
-  if (!title.value.trim()) {
-    errorMessage.value = 'Название не может быть пустым.';
-  error.value = null;
-  // const parsedData = parseContent(content.value); // Больше не нужно
+  error.value = null; // Сброс предыдущих ошибок
+  errorMessage.value = ''; // Сброс предыдущих сообщений об ошибках
 
   if (!title.value.trim() && !content.value.trim()) {
     error.value = 'Пожалуйста, добавьте заголовок или содержимое.';
     return;
   }
-  errorMessage.value = '';
-
-  const itemData = {
-    title: title.value,
-    description: description.value,
-  };
 
   try {
     if (props.itemToEdit) {
@@ -192,13 +163,20 @@ const handleSubmit = async () => {
   } catch (e) {
     console.error('Error during item submission:', e);
     error.value = store.error || 'Не удалось сохранить элемент.';
+    errorMessage.value = store.error || 'Произошла ошибка при сохранении.'; // Устанавливаем errorMessage
   }
 };
 
 // Убедимся, что контент обновляется, если initialItem изменяется (например, при открытии модального окна для другого элемента)
-// watch(() => props.initialItem, (newItem) => {
-//   content.value = newItem?.description || '';
-// }, { immediate: true });
+watch(() => props.itemToEdit, (newItem) => {
+  if (newItem) {
+    title.value = newItem.title || '';
+    content.value = newItem.description || '';
+  } else {
+    title.value = '';
+    content.value = '';
+  }
+}, { immediate: true });
 
 </script>
 
@@ -273,6 +251,12 @@ const handleSubmit = async () => {
   position: absolute;
   top: 10px;
   right: 15px;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+}
 .modal-body {
   flex-grow: 1; /* Позволяем телу модального окна занимать все доступное пространство */
   overflow-y: auto; /* Добавляем вертикальную прокрутку при переполнении */

@@ -14,6 +14,11 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  // ---> ДОБАВЬТЕ ЭТОТ НОВЫЙ PROP <---
+  listType: {
+    type: String,
+    required: true,
+  },
   itemToEdit: {
     type: Object,
     default: null,
@@ -237,7 +242,7 @@ const handleDelete = async () => {
               />
             </div>
             
-            <div class="goal-settings-section">
+            <div v-if="listType === 'todo'" class="goal-settings-section">
               <div class="form-group-checkbox">
                 <input type="checkbox" id="is-goal" v-model="isGoal" :disabled="!!itemToEdit && !!itemToEdit.goal_tracker" />
                 <label for="is-goal">Сделать целью с отслеживанием?</label>

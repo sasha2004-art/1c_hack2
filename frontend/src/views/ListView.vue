@@ -34,6 +34,7 @@
       :is-open="isItemModalOpen"
       :list-id="parseInt(listId)"
       :item-to-edit="currentItemForEdit"
+      :list-type="listsStore.currentList.list_type"
       @close="handleItemFormClose"
     />
   </div>

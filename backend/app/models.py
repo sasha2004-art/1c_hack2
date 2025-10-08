@@ -56,8 +56,6 @@ class User(Base):
 class ListType(str, enum.Enum):
     WISHLIST = "wishlist"
     TODO = "todo"
-    BOOKS = "books"
-    MOVIES = "movies"
 
 class PrivacyLevel(str, enum.Enum):
     PRIVATE = "private"

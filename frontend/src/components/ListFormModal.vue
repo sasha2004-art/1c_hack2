@@ -20,8 +20,6 @@
               <select id="list_type" v-model="form.list_type">
                 <option value="wishlist">Вишлист</option>
                 <option value="todo">Список дел</option>
-                <option value="books">Книги</option>
-                <option value="movies">Фильмы</option>
               </select>
             </div>
             <div class="form-group">

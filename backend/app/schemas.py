@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
-from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus, NotificationType
+from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus, NotificationType, GoalType
 
 # --- Схемы для пользователя ---
 
@@ -108,6 +108,35 @@ class CommentRead(CommentBase):
     class Config:
         from_attributes = True
 
+# --- (Этап 13) Новые схемы для Целей ---
+
+class GoalTrackerBase(BaseModel):
+    goal_type: GoalType
+    target_value: Optional[float] = None
+    target_count: Optional[int] = None
+    unit_name: Optional[str] = None
+
+class GoalTrackerCreate(GoalTrackerBase):
+    pass
+
+class GoalTrackerRead(GoalTrackerBase):
+    id: int
+    item_id: int
+    current_value: float
+
+    class Config:
+        from_attributes = True
+
+# (НОВАЯ СХЕМА)
+class GoalTrackerUpdate(BaseModel):
+    goal_type: Optional[GoalType] = None
+    target_value: Optional[float] = None
+    target_count: Optional[int] = None
+    unit_name: Optional[str] = None
+
+class GoalLogCreate(BaseModel):
+    value: float
+
 # --- Схемы для элементов списка ---
 
 class ItemBase(BaseModel):
@@ -117,13 +146,16 @@ class ItemBase(BaseModel):
     thumbnail_url: Optional[str] = None
 
 class ItemCreate(ItemBase):
-    pass
+    # (Этап 13) Опциональное поле для создания цели вместе с элементом
+    goal_settings: Optional[GoalTrackerCreate] = None
 
 class ItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    # (Этап 13) Поле для ручной отметки о завершении (для обычных элементов)
+    is_completed: Optional[bool] = None
 
 # (Этап 10) Схема для запроса копирования элемента
 class ItemCopy(BaseModel):
@@ -132,6 +164,7 @@ class ItemCopy(BaseModel):
 class ItemRead(ItemBase):
     id: int
     list_id: int
+    is_completed: bool # (Этап 13) Добавлено поле
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -139,6 +172,9 @@ class ItemRead(ItemBase):
     likes_count: int = 0
     is_liked_by_current_user: bool = False
     comments: List[CommentRead] = []
+
+    # (Этап 13) Добавлено поле для данных трекера
+    goal_tracker: Optional[GoalTrackerRead] = None
 
     class Config:
         from_attributes = True

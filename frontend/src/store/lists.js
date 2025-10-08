@@ -288,6 +288,55 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
+  // (НОВЫЙ ЭКШЕН)
+  async function updateGoalSettings(trackerId, goalData) {
+    error.value = null;
+    try {
+      const response = await apiClient.put(`/goals/${trackerId}`, goalData);
+      // Обновляем данные в локальном состоянии для мгновенной реакции
+      if (currentList.value) {
+        const itemIndex = currentList.value.items.findIndex(
+          item => item.goal_tracker?.id === trackerId
+        );
+        if (itemIndex !== -1) {
+          currentList.value.items[itemIndex].goal_tracker = response.data;
+        }
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось обновить настройки цели.';
+      console.error(e);
+      throw e;
+    }
+  }
+
+  // (Этап 14) Новый экшен для записи прогресса цели
+  async function logGoalProgress(trackerId, value) {
+    error.value = null;
+    try {
+      const response = await apiClient.post(`/goals/${trackerId}/log`, { value });
+      // Обновляем данные трекера в текущем списке для мгновенной реакции UI
+      if (currentList.value) {
+        const itemIndex = currentList.value.items.findIndex(
+          item => item.goal_tracker?.id === trackerId
+        );
+        if (itemIndex !== -1) {
+          // Обновляем сам трекер
+          currentList.value.items[itemIndex].goal_tracker = response.data;
+
+          // Проверяем, не завершилась ли цель, и обновляем статус элемента
+          const tracker = response.data;
+          const target = tracker.target_value || tracker.target_count;
+          if (target && tracker.current_value >= target) {
+            currentList.value.items[itemIndex].is_completed = true;
+          }
+        }
+      }
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось записать прогресс.';
+      console.error(e);
+      throw e; // Пробрасываем ошибку для обработки в компоненте
+    }
+  }
 
   return { 
     lists, 
@@ -313,6 +362,8 @@ export const useListsStore = defineStore('lists', () => {
     addComment,
     deleteComment
     ,
-    copyItem
+    copyItem,
+    logGoalProgress, // <-- Экспортируем новый экшен
+    updateGoalSettings // <-- Экспортируем новый экшен
   };
 });

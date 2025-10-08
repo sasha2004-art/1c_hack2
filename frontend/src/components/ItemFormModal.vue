@@ -27,6 +27,13 @@ const title = ref('');
 const description = ref('');
 const errorMessage = ref('');
 
+// --- (Этап 14) Новые ref для настроек цели ---
+const isGoal = ref(false);
+const goalType = ref('cumulative'); // 'cumulative' или 'check_in'
+const targetValue = ref(null); // для cumulative
+const targetCount = ref(null); // для check_in
+const unitName = ref('');
+
 // --- НОВЫЕ ref ДЛЯ ПОДБОРА КАРТИНОК ---
 const imageSuggestions = ref([]);
 const isSuggestionsLoading = ref(false);
@@ -68,14 +75,33 @@ const quillOptions = {
 
 
 watch(() => props.itemToEdit, (newItem) => {
+  imageSuggestions.value = [];
   if (newItem) {
     title.value = newItem.title;
     description.value = newItem.description || '';
+    if (newItem.goal_tracker) {
+      isGoal.value = true;
+      const tracker = newItem.goal_tracker;
+      goalType.value = tracker.goal_type;
+      targetValue.value = tracker.target_value;
+      targetCount.value = tracker.target_count;
+      unitName.value = tracker.unit_name || '';
+    } else {
+      isGoal.value = false;
+      goalType.value = 'cumulative';
+      targetValue.value = null;
+      targetCount.value = null;
+      unitName.value = '';
+    }
   } else {
     title.value = '';
     description.value = '';
+    isGoal.value = false;
+    goalType.value = 'cumulative';
+    targetValue.value = null;
+    targetCount.value = null;
+    unitName.value = '';
   }
-  imageSuggestions.value = []; // Очищаем предложения при открытии
 });
 
 // --- НОВЫЙ watch ДЛЯ ПОИСКА КАРТИНОК ---
@@ -130,15 +156,47 @@ const handleSubmit = async () => {
     description: description.value,
   };
 
+  // Собираем данные цели отдельно
+  const goalSettingsData = {
+    goal_type: goalType.value,
+    unit_name: unitName.value.trim() || null,
+    target_value: goalType.value === 'cumulative' ? parseFloat(targetValue.value) || 0 : null,
+    target_count: goalType.value === 'check_in' ? parseInt(targetCount.value, 10) || 0 : null,
+  };
+  
   try {
     if (props.itemToEdit) {
+      // 1. Обновляем основную информацию об элементе (название, описание)
       await listsStore.updateItem(props.itemToEdit.id, itemData);
+      
+      // 2. Если это цель, обновляем её настройки
+      if (props.itemToEdit.goal_tracker) {
+        await listsStore.updateGoalSettings(props.itemToEdit.goal_tracker.id, goalSettingsData);
+      }
     } else {
+      // Логика создания нового элемента
+      if (isGoal.value) {
+        itemData.goal_settings = goalSettingsData;
+      }
       await listsStore.addItem(props.listId, itemData);
     }
     closeModal();
   } catch (error) {
     errorMessage.value = listsStore.error || 'Произошла ошибка.';
+  }
+};
+
+// (НОВАЯ ФУНКЦИЯ) Обработчик удаления элемента
+const handleDelete = async () => {
+  if (!props.itemToEdit) return;
+
+  if (confirm('Вы уверены, что хотите удалить этот элемент? Это действие необратимо.')) {
+    try {
+      await listsStore.deleteItem(props.itemToEdit.id);
+      closeModal(); // Закрываем модальное окно после успешного удаления
+    } catch (error) {
+      errorMessage.value = listsStore.error || 'Не удалось удалить элемент.';
+    }
   }
 };
 </script>
@@ -186,10 +244,59 @@ const handleSubmit = async () => {
             style="min-height: 150px; display: flex; flex-direction: column;"
           />
         </div>
+        
+        <!-- (ИЗМЕНЕНИЕ) Убираем v-if="!itemToEdit" -->
+        <div class="goal-settings-section">
+          <div class="form-group-checkbox">
+            <!-- Блокируем чекбокс при редактировании, т.к. не реализуем удаление трекера -->
+            <input type="checkbox" id="is-goal" v-model="isGoal" :disabled="!!itemToEdit && !!itemToEdit.goal_tracker" />
+            <label for="is-goal">Сделать целью с отслеживанием?</label>
+          </div>
+
+          <div v-if="isGoal" class="goal-options">
+            <div class="form-group">
+              <label>Тип цели</label>
+              <select v-model="goalType">
+                <option value="cumulative">Прогресс (накопить значение)</option>
+                <option value="check_in">Привычка (сделать N раз)</option>
+              </select>
+            </div>
+            
+            <div v-if="goalType === 'cumulative'" class="form-group">
+              <label for="target-value">Целевое значение</label>
+              <input id="target-value" type="number" step="0.1" v-model="targetValue" placeholder="Например: 1000" required />
+            </div>
+
+            <div v-if="goalType === 'check_in'" class="form-group">
+              <label for="target-count">Целевое количество раз</label>
+              <input id="target-count" type="number" step="1" v-model="targetCount" placeholder="Например: 30" required />
+            </div>
+
+            <div class="form-group">
+              <label for="unit-name">Единица измерения</label>
+              <input id="unit-name" type="text" v-model="unitName" placeholder="Например: страниц, км, раз" />
+            </div>
+          </div>
+        </div>
 
         <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
+        <!-- (ИЗМЕНЕНИЕ) Обновляем блок с кнопками -->
         <div class="form-actions">
+          <!-- Новая кнопка "Удалить", видна только при редактировании -->
+          <button
+            v-if="itemToEdit"
+            type="button"
+            class="btn-danger"
+            @click="handleDelete"
+          >
+            Удалить
+          </button>
+          
+          <!-- Пустой div-распорка для выравнивания -->
+          <div class="spacer"></div>
+          
+          <!-- Существующие кнопки -->
           <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
           <button type="submit" class="btn-primary">
             {{ itemToEdit ? 'Сохранить' : 'Добавить' }}
@@ -286,12 +393,18 @@ h2 {
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start; /* Выравнивание по левому краю */
   gap: 1rem;
   margin-top: 1.5rem;
+  align-items: center; /* Центрирование по вертикали */
 }
 
-.btn-primary, .btn-secondary {
+/* Распорка, чтобы растолкнуть кнопки по краям */
+.spacer {
+  flex-grow: 1;
+}
+
+.btn-primary, .btn-secondary, .btn-danger {
   padding: 10px 20px;
   border-radius: 5px;
   border: none;
@@ -308,6 +421,11 @@ h2 {
 .btn-secondary {
   background-color: #6c757d;
   color: white;
+}
+/* Новый стиль для кнопки удаления */
+.btn-danger {
+  background-color: var(--secondary-color, #dc3545);
+  color: var(--secondary-text-color, white);
 }
 .error-message {
   color: #dc3545;
@@ -365,5 +483,35 @@ h2 {
 .suggestion-image:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* (Этап 14) Стили для настроек цели */
+.goal-settings-section {
+  border: 1px solid #D8BFD8;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background-color: #fcfaff;
+}
+.form-group-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.form-group-checkbox label {
+  font-weight: bold;
+  margin-bottom: 0;
+}
+.goal-options {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #D8BFD8;
+}
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #D8BFD8;
+  border-radius: 4px;
+  background-color: #f9f9f9;
 }
 </style>

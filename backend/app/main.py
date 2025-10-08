@@ -2,7 +2,6 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-import os
 
 from .db.base import engine, get_db
 from . import models
@@ -13,6 +12,8 @@ from .routers import notifications
 from .routers import utils
 # (Этап 11) Импортируем роутер ленты
 from .routers import feed
+# (Этап 13) Импортируем роутер целей
+from .routers import goals
 
 # Создаем все таблицы в БД, которые унаследованы от Base
 models.Base.metadata.create_all(bind=engine)
@@ -50,6 +51,8 @@ app.include_router(notifications.router)
 app.include_router(utils.router)
 # (Этап 11) Регистрируем роутер ленты
 app.include_router(feed.router, prefix="/feed", tags=["feed"])
+# (Этап 13) Регистрируем роутер целей
+app.include_router(goals.router)
 
 
 @app.get("/")

@@ -150,7 +150,15 @@ def get_list(db: Session, list_id: int) -> Optional[models.List]:
             .joinedload(models.Item.comments)
             .joinedload(models.Comment.owner)
         )
-        .options(joinedload(models.List.items).joinedload(models.Item.likes))
+        .options(
+            joinedload(models.List.items)
+            .joinedload(models.Item.likes)
+        )
+        # (Этап 13) Подгружаем данные трекера вместе с элементом
+        .options(
+            joinedload(models.List.items)
+            .joinedload(models.Item.goal_tracker)
+        )
         .filter(models.List.id == list_id)
         .first()
     )
@@ -206,11 +214,28 @@ def get_item(db: Session, item_id: int) -> Optional[models.Item]:
     return db.query(models.Item).filter(models.Item.id == item_id).first()
 
 def create_list_item(db: Session, item_data: schemas.ItemCreate, list_id: int) -> models.Item:
-    """Создать новый элемент в списке."""
-    db_item = models.Item(**item_data.dict(), list_id=list_id)
+    """Создать новый элемент в списке. Если переданы настройки цели, создать и связать GoalTracker."""
+    item_dict = item_data.dict()
+    goal_settings_data = item_dict.pop("goal_settings", None)
+
+    # Создаем элемент
+    db_item = models.Item(**item_dict, list_id=list_id)
     db.add(db_item)
+    
+    # Если есть настройки цели, создаем трекер
+    if goal_settings_data:
+        # Получаем ID элемента до коммита транзакции
+        db.flush()
+        
+        tracker_schema = schemas.GoalTrackerCreate(**goal_settings_data)
+        db_goal_tracker = models.GoalTracker(
+            **tracker_schema.dict(),
+            item_id=db_item.id
+        )
+        db.add(db_goal_tracker)
+    
     db.commit()
-    db.refresh(db_item)
+    db.refresh(db_item) # Обновляем, чтобы подгрузить связи
     return db_item
 
 def update_item(db: Session, db_item: models.Item, item_data: schemas.ItemUpdate) -> models.Item:
@@ -239,6 +264,23 @@ def copy_item_to_list(db: Session, source_item: models.Item, target_list_id: int
         thumbnail_url=source_item.thumbnail_url,
     )
     return create_list_item(db=db, item_data=new_item_data, list_id=target_list_id)
+
+# --- (Этап 13) CRUD для Целей ---
+
+def get_goal_tracker(db: Session, tracker_id: int) -> Optional[models.GoalTracker]:
+    """Получить один трекер цели по его ID."""
+    return db.query(models.GoalTracker).filter(models.GoalTracker.id == tracker_id).first()
+
+# (НОВАЯ ФУНКЦИЯ)
+def update_goal_tracker(db: Session, db_tracker: models.GoalTracker, tracker_data: schemas.GoalTrackerUpdate) -> models.GoalTracker:
+    """Обновить существующий трекер цели."""
+    update_data = tracker_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_tracker, key, value)
+    db.add(db_tracker)
+    db.commit()
+    db.refresh(db_tracker)
+    return db_tracker
 
 # --- CRUD для Бронирования ---
 

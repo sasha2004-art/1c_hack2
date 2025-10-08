@@ -3,6 +3,10 @@ import { ref } from 'vue';
 import Lightbox from './Lightbox.vue';
 import LikeButton from './LikeButton.vue';
 import CommentsSection from './CommentsSection.vue';
+// (Этап 14) Импортируем новые компоненты
+import GoalProgressBar from './GoalProgressBar.vue';
+import LogProgressModal from './LogProgressModal.vue';
+import { useListsStore } from '@/store/lists';
 
 const props = defineProps({
   item: {
@@ -16,9 +20,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['edit-item']);
+const listsStore = useListsStore();
 
 const isLightboxVisible = ref(false);
 const showComments = ref(false);
+
+// (Этап 14) Новое состояние для модального окна записи прогресса
+const isLogModalOpen = ref(false);
+const itemToLog = ref(null);
 
 const openLightbox = () => {
   if (props.item.image_url) {
@@ -33,10 +42,42 @@ const closeLightbox = () => {
 const handleEditClick = () => {
   emit('edit-item', props.item);
 };
+
+// (Этап 14) Новые функции для управления модальным окном
+const openLogModal = (item) => {
+  itemToLog.value = item;
+  isLogModalOpen.value = true;
+};
+
+const closeLogModal = () => {
+  isLogModalOpen.value = false;
+  itemToLog.value = null;
+};
+
+const submitLog = async (value) => {
+  if (!itemToLog.value || !itemToLog.value.goal_tracker) return;
+  try {
+    await listsStore.logGoalProgress(itemToLog.value.goal_tracker.id, value);
+  } catch (error) {
+    console.error("Failed to log progress:", error);
+    alert(listsStore.error || 'Не удалось записать прогресс.');
+  }
+};
+
+// (ИЗМЕНЕНИЕ) Новая функция для прямого вызова без модального окна
+const submitHabitChange = async (item, value) => {
+  if (!item.goal_tracker) return;
+  try {
+    await listsStore.logGoalProgress(item.goal_tracker.id, value);
+  } catch (error) {
+    console.error("Failed to log progress:", error);
+    alert(listsStore.error || 'Не удалось записать прогресс.');
+  }
+};
 </script>
 
 <template>
-  <div class="item-card">
+  <div class="item-card" :class="{ 'completed': item.is_completed }">
     <div v-if="item.thumbnail_url" class="item-image-container" @click="openLightbox">
       <img :src="`http://localhost:8000${item.thumbnail_url}`" :alt="item.title" class="item-image" />
     </div>
@@ -44,8 +85,22 @@ const handleEditClick = () => {
     <div class="item-info">
       <h3>{{ item.title }}</h3>
       <div class="item-description" v-html="item.description"></div>
+
+      <!-- (ИЗМЕНЕНИЕ) Блок с прогресс-баром теперь здесь, в основной части -->
+      <div class="goal-progress-section" v-if="item.goal_tracker">
+        <GoalProgressBar
+          v-if="!item.is_completed && isOwner"
+          :tracker="item.goal_tracker"
+          @open-log-modal="openLogModal(item)"
+          @log-value-change="value => submitHabitChange(item, value)"
+        />
+        <div v-else-if="item.is_completed" class="goal-completed">
+          ✅ Цель достигнута!
+        </div>
+      </div>
     </div>
 
+    <!-- (ИЗМЕНЕНИЕ) Футер теперь всегда одинаковый для всех карточек -->
     <div class="card-footer">
       <div class="interactions">
         <LikeButton :item="item" />
@@ -58,10 +113,13 @@ const handleEditClick = () => {
 
     <CommentsSection v-if="showComments" :item-id="item.id" :comments="item.comments" />
 
-    <Lightbox
-      :is-visible="isLightboxVisible"
-      :image-url="`http://localhost:8000${item.image_url}`"
-      @close="closeLightbox"
+    <Lightbox :is-visible="isLightboxVisible" :image-url="`http://localhost:8000${item.image_url}`" @close="closeLightbox" />
+
+    <LogProgressModal
+      :is-open="isLogModalOpen"
+      :tracker="itemToLog?.goal_tracker"
+      @close="closeLogModal"
+      @submit="submitLog"
     />
   </div>
 </template>
@@ -123,6 +181,12 @@ const handleEditClick = () => {
   padding-left: 1.5em; 
 }
 
+.goal-progress-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
 .card-footer {
   padding: 0.5rem 1rem;
   border-top: 1px solid var(--border-color);
@@ -158,5 +222,18 @@ const handleEditClick = () => {
 }
 .btn-icon:hover {
   background-color: rgba(0,0,0,0.1);
+}
+
+/* (Этап 14) Стили для целей */
+.item-card.completed {
+  opacity: 0.7;
+  background-color: #f7fff8;
+}
+.goal-completed {
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+  color: #28a745;
+  padding: 0.5rem;
 }
 </style>

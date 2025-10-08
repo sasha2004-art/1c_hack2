@@ -24,6 +24,7 @@
     <ListFormModal 
       v-if="isListModalVisible" 
       :initial-list="editingList"
+      :is-open="isListModalVisible"
       @close="closeListModal"
       @list-updated="listsStore.fetchLists"
     />

@@ -56,6 +56,10 @@ const props = defineProps({
   initialList: {
     type: Object,
     default: null
+  },
+  isOpen: {
+    type: Boolean,
+    default: false
   }
 });
 const emit = defineEmits(['close']);

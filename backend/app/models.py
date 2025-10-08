@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text, UniqueConstraint, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID # Импортируем тип UUID
@@ -11,6 +11,11 @@ class NotificationType(str, enum.Enum):
     FRIEND_REQUEST = "friend_request"
     LIKE = "like"
     COMMENT = "comment"
+
+# (Этап 13) Новое перечисление для типов целей
+class GoalType(str, enum.Enum):
+    CUMULATIVE = "cumulative"
+    CHECK_IN = "check_in"
 
 class User(Base):
     """
@@ -51,8 +56,6 @@ class User(Base):
 class ListType(str, enum.Enum):
     WISHLIST = "wishlist"
     TODO = "todo"
-    BOOKS = "books"
-    MOVIES = "movies"
 
 class PrivacyLevel(str, enum.Enum):
     PRIVATE = "private"
@@ -116,6 +119,9 @@ class Item(Base):
     # Новые поля для изображений
     image_url = Column(String, nullable=True)  # Путь к полному изображению
     thumbnail_url = Column(String, nullable=True)  # Путь к миниатюре
+
+    # (Этап 13) Новое поле для отметки о выполнении
+    is_completed = Column(Boolean, default=False, nullable=False)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -129,6 +135,9 @@ class Item(Base):
     # Новые связи для лайков и комментариев
     likes = relationship("Like", back_populates="item", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="item", cascade="all, delete-orphan", order_by="Comment.created_at")
+    
+    # (Этап 13) Новая обратная связь с GoalTracker
+    goal_tracker = relationship("GoalTracker", back_populates="item", uselist=False, cascade="all, delete-orphan")
 
 
 # Новая модель для бронирования
@@ -215,5 +224,39 @@ class Notification(Base):
     sender = relationship("User", foreign_keys=[sender_id])
 
     # С каким элементом связано уведомление (необязательно)
-    related_item_id = Column(Integer, ForeignKey("items.id"), nullable=True)
+    related_item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=True)
     related_item = relationship("Item")
+
+
+# (Этап 13) Новая модель для отслеживания целей
+class GoalTracker(Base):
+    __tablename__ = "goal_trackers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    item_id = Column(Integer, ForeignKey("items.id"), unique=True, nullable=False)
+
+    goal_type = Column(Enum(GoalType), nullable=False)
+    
+    # Для CUMULATIVE целей (накопить значение)
+    target_value = Column(Float, nullable=True)
+    current_value = Column(Float, default=0.0, nullable=False)
+
+    # Для CHECK_IN целей (сделать N раз)
+    target_count = Column(Integer, nullable=True)
+    
+    unit_name = Column(String, nullable=True)
+
+    item = relationship("Item", back_populates="goal_tracker")
+    logs = relationship("GoalLog", back_populates="tracker", cascade="all, delete-orphan")
+
+
+# (Этап 13) Новая модель для логов прогресса
+class GoalLog(Base):
+    __tablename__ = "goal_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tracker_id = Column(Integer, ForeignKey("goal_trackers.id"), nullable=False)
+    value_added = Column(Float, nullable=False)
+    logged_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tracker = relationship("GoalTracker", back_populates="logs")

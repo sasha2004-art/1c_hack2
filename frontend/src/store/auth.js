@@ -14,6 +14,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('user-token') || null);
   const user = ref(null);
   const error = ref(null);
+  const successMessage = ref(null); // Для сообщений об успехе
 
   // Interceptor по-прежнему настраивается здесь, но использует экспортированный apiClient
   apiClient.interceptors.request.use(config => {
@@ -34,9 +35,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function clearMessages() {
+    error.value = null;
+    successMessage.value = null;
+  }
+
   async function register(credentials) {
+    clearMessages();
     try {
-      error.value = null;
       await apiClient.post('/auth/register', credentials);
       router.push({ name: 'Login' });
     } catch (e) {
@@ -45,8 +51,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(credentials) {
+    clearMessages();
     try {
-      error.value = null;
       const params = new URLSearchParams();
       params.append('username', credentials.email);
       params.append('password', credentials.password);
@@ -78,6 +84,49 @@ export const useAuthStore = defineStore('auth', () => {
     router.push({ name: 'Login' });
   }
 
-  // Убираем apiClient из возвращаемого объекта
-  return { token, user, error, register, login, logout, fetchUser, setToken };
+  // --- НОВЫЕ ЭКШЕНЫ ---
+  async function updatePassword(passwordData) {
+    clearMessages();
+    try {
+      await apiClient.put('/settings/password', passwordData);
+      successMessage.value = 'Пароль успешно обновлен!';
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось обновить пароль.';
+      throw e;
+    }
+  }
+
+  async function updateEmail(emailData) {
+    clearMessages();
+    try {
+      const response = await apiClient.put('/settings/email', emailData);
+      user.value = response.data; // Обновляем данные пользователя в сторе
+      successMessage.value = 'Email успешно обновлен!';
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось обновить email.';
+      throw e;
+    }
+  }
+
+  async function deleteAccount(password) {
+    clearMessages();
+    try {
+      await apiClient.delete('/settings/account', {
+        data: { password: password }
+      });
+      // После успешного удаления разлогиниваем пользователя
+      logout();
+    } catch (e) {
+      error.value = e.response?.data?.detail || 'Не удалось удалить аккаунт.';
+      throw e;
+    }
+  }
+
+  return { 
+    token, user, error, successMessage,
+    register, login, logout, fetchUser, 
+    updatePassword, updateEmail, deleteAccount,
+    clearMessages,
+    setToken // <--- ВОТ ИСПРАВЛЕНИЕ
+  };
 });

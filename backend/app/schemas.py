@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
-from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus, NotificationType
+from .models import ListType, PrivacyLevel, ThemeName, FriendshipStatus, NotificationType, GoalType
 
 # --- Схемы для пользователя ---
 
@@ -75,6 +75,7 @@ class NotificationsResponse(BaseModel):
 class PublicListForProfile(BaseModel):
     """Упрощенная схема списка для отображения в профиле."""
     id: int
+    public_url_key: UUID # <--- ДОБАВЛЕНО ПОЛЕ
     title: str
     list_type: ListType
     privacy_level: PrivacyLevel
@@ -107,6 +108,35 @@ class CommentRead(CommentBase):
     class Config:
         from_attributes = True
 
+# --- (Этап 13) Новые схемы для Целей ---
+
+class GoalTrackerBase(BaseModel):
+    goal_type: GoalType
+    target_value: Optional[float] = None
+    target_count: Optional[int] = None
+    unit_name: Optional[str] = None
+
+class GoalTrackerCreate(GoalTrackerBase):
+    pass
+
+class GoalTrackerRead(GoalTrackerBase):
+    id: int
+    item_id: int
+    current_value: float
+
+    class Config:
+        from_attributes = True
+
+# (НОВАЯ СХЕМА)
+class GoalTrackerUpdate(BaseModel):
+    goal_type: Optional[GoalType] = None
+    target_value: Optional[float] = None
+    target_count: Optional[int] = None
+    unit_name: Optional[str] = None
+
+class GoalLogCreate(BaseModel):
+    value: float
+
 # --- Схемы для элементов списка ---
 
 class ItemBase(BaseModel):
@@ -116,17 +146,25 @@ class ItemBase(BaseModel):
     thumbnail_url: Optional[str] = None
 
 class ItemCreate(ItemBase):
-    pass
+    # (Этап 13) Опциональное поле для создания цели вместе с элементом
+    goal_settings: Optional[GoalTrackerCreate] = None
 
 class ItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    # (Этап 13) Поле для ручной отметки о завершении (для обычных элементов)
+    is_completed: Optional[bool] = None
+
+# (Этап 10) Схема для запроса копирования элемента
+class ItemCopy(BaseModel):
+    target_list_id: int
 
 class ItemRead(ItemBase):
     id: int
     list_id: int
+    is_completed: bool # (Этап 13) Добавлено поле
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -134,6 +172,9 @@ class ItemRead(ItemBase):
     likes_count: int = 0
     is_liked_by_current_user: bool = False
     comments: List[CommentRead] = []
+
+    # (Этап 13) Добавлено поле для данных трекера
+    goal_tracker: Optional[GoalTrackerRead] = None
 
     class Config:
         from_attributes = True
@@ -187,6 +228,17 @@ class ListPublicRead(ListBase):
     class Config:
         from_attributes = True
 
+# --- (Этап 11) Новая схема для ленты ---
+class ListForFeedRead(ListBase):
+    id: int
+    public_url_key: UUID # <--- ДОБАВЛЕНО ПОЛЕ
+    owner: UserInComment # Включаем информацию о владельце
+    created_at: datetime
+    items_count: int = 0 # Включаем количество элементов для контекста
+
+    class Config:
+        from_attributes = True
+
 # --- Схемы для бронирования ---
 
 # Схема для отображения бронирования в списке пользователя
@@ -198,3 +250,13 @@ class ReservationRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Схемы для настроек пользователя ---
+
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+class EmailUpdate(BaseModel):
+    current_password: str
+    new_email: EmailStr

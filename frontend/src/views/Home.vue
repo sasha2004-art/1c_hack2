@@ -1,9 +1,10 @@
-<!-- frontend/src/views/Home.vue -->
 <template>
   <div class="home-container">
+    <OnboardingBanner v-if="showOnboarding" @dismiss="dismissOnboarding" />
+
     <div class="home-header">
       <h1>Мои списки</h1>
-      <button @click="openListModal(null)">Создать список</button>
+      <button @click="openListModal(null)" class="btn btn-primary">Создать список</button>
     </div>
 
     <div v-if="isLoading" class="loading-spinner">Загрузка...</div>
@@ -18,14 +19,21 @@
         :list="list"
         @edit="openListModal(list)"
         @delete="handleDeleteList(list.id)"
+        @share="openShareModal(list)"
       />
     </div>
 
-    <!-- Модальное окно для создания/редактирования списка -->
     <ListFormModal 
       v-if="isListModalVisible" 
       :initial-list="editingList"
+      :is-open="isListModalVisible"
       @close="closeListModal"
+      @list-updated="listsStore.fetchLists"
+    />
+    <ShareModal 
+      :is-open="isShareModalVisible" 
+      :list="listToShare" 
+      @close="closeShareModal" 
     />
   </div>
 </template>
@@ -36,14 +44,30 @@ import { useListsStore } from '@/store/lists';
 import { storeToRefs } from 'pinia';
 import ListCard from '@/components/ListCard.vue';
 import ListFormModal from '@/components/ListFormModal.vue';
+import ShareModal from '@/components/ShareModal.vue';
+import OnboardingBanner from '@/components/OnboardingBanner.vue'; // Импортируем баннер
 
 const listsStore = useListsStore();
 const { lists, isLoading } = storeToRefs(listsStore);
 
-// --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-// Устанавливаем значение по умолчанию в `false`
 const isListModalVisible = ref(false); 
 const editingList = ref(null);
+
+const isShareModalVisible = ref(false);
+const listToShare = ref(null);
+
+// --- Логика Онбординга ---
+const showOnboarding = ref(false);
+const checkOnboarding = () => {
+  if (!localStorage.getItem('plotix-onboarding-complete')) {
+    showOnboarding.value = true;
+  }
+};
+const dismissOnboarding = () => {
+  localStorage.setItem('plotix-onboarding-complete', 'true');
+  showOnboarding.value = false;
+};
+// --- Конец логики Онбординга ---
 
 const openListModal = (list = null) => {
   editingList.value = list;
@@ -53,53 +77,67 @@ const openListModal = (list = null) => {
 const closeListModal = () => {
   isListModalVisible.value = false;
   editingList.value = null;
+  listsStore.fetchLists();
+};
+
+const openShareModal = (list) => {
+  listToShare.value = list;
+  isShareModalVisible.value = true;
+};
+
+const closeShareModal = () => {
+  isShareModalVisible.value = false;
+  listToShare.value = null;
 };
 
 const handleDeleteList = async (listId) => {
     if(confirm('Вы уверены, что хотите удалить этот список со всеми элементами?')) {
-        await listsStore.deleteList(listId);
+        try {
+            await listsStore.deleteList(listId);
+            listsStore.fetchLists();
+        } catch (error) {
+            console.error('Ошибка при удалении списка:', error);
+            alert('Не удалось удалить список. Пожалуйста, попробуйте еще раз.');
+        }
     }
 }
 
 onMounted(() => {
   listsStore.fetchLists();
+  checkOnboarding(); // Проверяем при загрузке
 });
 </script>
 
 <style scoped>
 .home-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0 var(--space-lg);
 }
 .home-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-xl);
+  padding-top: var(--space-lg);
 }
 .home-header h1 {
   margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
   color: var(--text-color);
 }
-.home-header button {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  background-color: var(--primary-color);
-  color: var(--primary-text-color);
-}
 .lists-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
 }
 .loading-spinner, .no-lists-message {
   text-align: center;
-  padding: 2rem;
-  font-size: 1.5rem;
-  color: #888;
+  padding: var(--space-2xl);
+  font-size: 18px;
+  color: #6c757d;
+  grid-column: 1 / -1; /* Span all columns */
 }
 </style>

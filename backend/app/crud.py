@@ -155,7 +155,15 @@ def get_list(db: Session, list_id: int) -> Optional[models.List]:
             .joinedload(models.Item.comments)
             .joinedload(models.Comment.owner)
         )
-        .options(joinedload(models.List.items).joinedload(models.Item.likes))
+        .options(
+            joinedload(models.List.items)
+            .joinedload(models.Item.likes)
+        )
+        # (Этап 13) Подгружаем данные трекера вместе с элементом
+        .options(
+            joinedload(models.List.items)
+            .joinedload(models.Item.goal_tracker)
+        )
         .filter(models.List.id == list_id)
         .first()
     )
@@ -212,11 +220,28 @@ def get_item(db: Session, item_id: int) -> Optional[models.Item]:
     return db.query(models.Item).options(joinedload(models.Item.list)).filter(models.Item.id == item_id).first()
 
 def create_list_item(db: Session, item_data: schemas.ItemCreate, list_id: int) -> models.Item:
-    """Создать новый элемент в списке."""
-    db_item = models.Item(**item_data.dict(), list_id=list_id)
+    """Создать новый элемент в списке. Если переданы настройки цели, создать и связать GoalTracker."""
+    item_dict = item_data.dict()
+    goal_settings_data = item_dict.pop("goal_settings", None)
+
+    # Создаем элемент
+    db_item = models.Item(**item_dict, list_id=list_id)
     db.add(db_item)
+    
+    # Если есть настройки цели, создаем трекер
+    if goal_settings_data:
+        # Получаем ID элемента до коммита транзакции
+        db.flush()
+        
+        tracker_schema = schemas.GoalTrackerCreate(**goal_settings_data)
+        db_goal_tracker = models.GoalTracker(
+            **tracker_schema.dict(),
+            item_id=db_item.id
+        )
+        db.add(db_goal_tracker)
+    
     db.commit()
-    db.refresh(db_item)
+    db.refresh(db_item) # Обновляем, чтобы подгрузить связи
     return db_item
 
 def update_item(db: Session, db_item: models.Item, item_data: schemas.ItemUpdate) -> models.Item:
@@ -235,59 +260,33 @@ def delete_item(db: Session, db_item: models.Item):
     db.commit()
     return db_item
 
-# --- (Новое) CRUD для Копирования Элементов ---
-
-def get_or_create_default_copy_list(db: Session, user_id: int) -> models.List:
-    """Получает или создает список по умолчанию для скопированных элементов."""
-    
-    # 1. Поиск существующего списка
-    default_list = db.query(models.List).filter(
-        models.List.owner_id == user_id,
-        models.List.title == DEFAULT_COPY_LIST_TITLE,
-        models.List.list_type == models.ListType.WISHLIST 
-    ).first()
-
-    if default_list:
-        return default_list
-
-    # 2. Создание нового списка, если он не найден
-    list_data = schemas.ListCreate(
-        title=DEFAULT_COPY_LIST_TITLE,
-        description="Сюда автоматически сохраняются элементы, скопированные из чужих списков.",
-        list_type=models.ListType.WISHLIST,
-        privacy_level=models.PrivacyLevel.PRIVATE 
+# (Этап 10) Копирование элемента в указанный список
+def copy_item_to_list(db: Session, source_item: models.Item, target_list_id: int) -> models.Item:
+    """Создать дубликат элемента в другом списке пользователя."""
+    new_item_data = schemas.ItemCreate(
+        title=source_item.title,
+        description=source_item.description,
+        image_url=source_item.image_url,
+        thumbnail_url=source_item.thumbnail_url,
     )
-    
-    db_list = models.List(**list_data.dict(), owner_id=user_id)
-    db.add(db_list)
+    return create_list_item(db=db, item_data=new_item_data, list_id=target_list_id)
+
+# --- (Этап 13) CRUD для Целей ---
+
+def get_goal_tracker(db: Session, tracker_id: int) -> Optional[models.GoalTracker]:
+    """Получить один трекер цели по его ID."""
+    return db.query(models.GoalTracker).filter(models.GoalTracker.id == tracker_id).first()
+
+# (НОВАЯ ФУНКЦИЯ)
+def update_goal_tracker(db: Session, db_tracker: models.GoalTracker, tracker_data: schemas.GoalTrackerUpdate) -> models.GoalTracker:
+    """Обновить существующий трекер цели."""
+    update_data = tracker_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_tracker, key, value)
+    db.add(db_tracker)
     db.commit()
-    db.refresh(db_list)
-    return db_list
-
-
-def copy_item_to_list(db: Session, source_item: models.Item, target_user: models.User) -> models.Item:
-    """Копирует данные элемента в список пользователя."""
-    
-    # 1. Получаем или создаем целевой список
-    target_list = get_or_create_default_copy_list(db, target_user.id)
-    
-    # 2. Создаем новый элемент на основе исходного
-    new_item_data = {
-        'title': source_item.title,
-        'description': source_item.description,
-        'image_url': source_item.image_url,
-        'thumbnail_url': source_item.thumbnail_url,
-        'list_id': target_list.id
-    }
-    
-    db_item = models.Item(**new_item_data)
-    db.add(db_item)
-    db.commit()
-    db.refresh(db_item)
-    
-    # 3. Возвращаем созданный элемент
-    return db_item
-
+    db.refresh(db_tracker)
+    return db_tracker
 
 # --- CRUD для Бронирования ---
 
@@ -421,3 +420,74 @@ def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -
         db.refresh(db_notification)
         return db_notification
     return None
+
+# --- (Этап 11) CRUD для Ленты ---
+def get_friends_feed_lists(db: Session, user_id: int, skip: int = 0, limit: int = 10) -> TypingList[models.List]:
+    """
+    Получает ленту списков от друзей пользователя.
+    Включает публичные списки и списки "только для друзей".
+    Сортировка по дате создания (новые сверху).
+    """
+    # 1. Найти всех друзей пользователя
+    friendships = db.query(models.Friendship).filter(
+        (models.Friendship.status == models.FriendshipStatus.ACCEPTED) &
+        or_(
+            models.Friendship.requester_id == user_id,
+            models.Friendship.addressee_id == user_id
+        )
+    ).all()
+
+    friend_ids = set()
+    for fs in friendships:
+        if fs.requester_id == user_id:
+            friend_ids.add(fs.addressee_id)
+        else:
+            friend_ids.add(fs.requester_id)
+
+    if not friend_ids:
+        return []
+
+    # 2. Найти все списки этих друзей, которые являются public или friends_only
+    lists = db.query(models.List).options(
+        joinedload(models.List.owner),
+        joinedload(models.List.items) # Загружаем элементы, чтобы посчитать их
+    ).filter(
+        models.List.owner_id.in_(friend_ids),
+        or_(
+            models.List.privacy_level == models.PrivacyLevel.PUBLIC,
+            models.List.privacy_level == models.PrivacyLevel.FRIENDS_ONLY
+        )
+    ).order_by(
+        models.List.created_at.desc()
+    ).offset(
+        skip
+    ).limit(
+        limit
+    ).all()
+
+    return lists
+
+# --- CRUD для Настроек пользователя ---
+
+def update_user_password(db: Session, db_user: models.User, new_password: str):
+    """Обновляет пароль пользователя."""
+    hashed_password = security.get_password_hash(new_password)
+    db_user.hashed_password = hashed_password
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def update_user_email(db: Session, db_user: models.User, new_email: str):
+    """Обновляет email пользователя."""
+    db_user.email = new_email
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def delete_user(db: Session, db_user: models.User):
+    """Удаляет пользователя."""
+    db.delete(db_user)
+    db.commit()
+    return db_user

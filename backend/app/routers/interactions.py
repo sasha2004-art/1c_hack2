@@ -95,3 +95,38 @@ def delete_comment(
         raise HTTPException(status_code=403, detail="Недостаточно прав для удаления этого комментария")
 
     return crud.delete_comment(db=db, db_comment=db_comment)
+
+# --- Этап 10: Эндпоинт для копирования элемента ---
+
+@router.post("/items/{item_id}/copy", response_model=schemas.ItemRead, status_code=status.HTTP_201_CREATED)
+def copy_item_to_own_list(
+    item_id: int,
+    copy_data: schemas.ItemCopy,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Копирует элемент из чужого списка в один из списков текущего пользователя."""
+    source_item = crud.get_item(db, item_id=item_id)
+    if not source_item:
+        raise HTTPException(status_code=404, detail="Source item not found")
+
+    target_list = crud.get_list(db, list_id=copy_data.target_list_id)
+    if not target_list:
+        raise HTTPException(status_code=404, detail="Target list not found")
+    if target_list.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only copy items to your own lists")
+
+    source_list = source_item.list
+    if source_list.owner_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot copy an item from your own list")
+
+    if source_list.privacy_level == models.PrivacyLevel.PRIVATE:
+        raise HTTPException(status_code=403, detail="Cannot copy from a private list")
+
+    if source_list.privacy_level == models.PrivacyLevel.FRIENDS_ONLY:
+        are_friends = crud.are_users_friends(db, user1_id=current_user.id, user2_id=source_list.owner_id)
+        if not are_friends:
+            raise HTTPException(status_code=403, detail="This item is only available to friends.")
+
+    new_item = crud.copy_item_to_list(db=db, source_item=source_item, target_list_id=copy_data.target_list_id)
+    return new_item

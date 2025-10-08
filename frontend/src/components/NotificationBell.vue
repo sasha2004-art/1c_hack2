@@ -118,6 +118,7 @@ onUnmounted(() => {
 <style scoped>
 .notification-bell-container {
   position: relative;
+  margin-top: 9px;
 }
 
 .bell-icon-wrapper {

@@ -1,3 +1,5 @@
+# backend/app/routers/lists.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -20,11 +22,15 @@ def assemble_list_response(db_list: models.List, current_user_id: int) -> schema
             list_id=item.list_id,
             title=item.title,
             description=item.description,
+            image_url=item.image_url, # <-- ДОБАВЛЕНО НА ВСЯКИЙ СЛУЧАЙ, ЕСЛИ ПРОПУСТИЛИ
+            thumbnail_url=item.thumbnail_url, # <-- ДОБАВЛЕНО НА ВСЯКИЙ СЛУЧАЙ, ЕСЛИ ПРОПУСТИЛИ
+            is_completed=item.is_completed, # <--- ВОТ ИСПРАВЛЕНИЕ!
             created_at=item.created_at,
             updated_at=item.updated_at,
             likes_count=likes_count,
             is_liked_by_current_user=is_liked,
-            comments=[schemas.CommentRead.from_orm(c) for c in item.comments]
+            comments=[schemas.CommentRead.from_orm(c) for c in item.comments],
+            goal_tracker=item.goal_tracker # <-- ДОБАВЛЕНО ДЛЯ ПОЛНОТЫ
         )
         items_response.append(item_data)
     
@@ -49,7 +55,9 @@ def create_list(
     current_user: models.User = Depends(get_current_active_user)
 ):
     """Создание нового списка для текущего пользователя."""
-    return crud.create_user_list(db=db, list_data=list_data, user_id=current_user.id)
+    db_list = crud.create_user_list(db=db, list_data=list_data, user_id=current_user.id)
+    # Возвращаем через assemble_list_response, чтобы сразу были все поля
+    return assemble_list_response(db_list, current_user.id)
 
 
 @router.get("/", response_model=List[schemas.ListRead])
@@ -61,7 +69,8 @@ def read_user_lists(
 ):
     """Получение всех списков текущего пользователя."""
     lists = crud.get_lists_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
-    return lists
+    # Прогоняем каждый список через сборщик, чтобы обеспечить консистентность данных
+    return [assemble_list_response(l, current_user.id) for l in lists]
 
 
 @router.get("/{list_id}", response_model=schemas.ListRead)

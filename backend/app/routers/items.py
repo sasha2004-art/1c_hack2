@@ -24,6 +24,14 @@ def create_item_for_list(
     if db_list.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
     
+    # ---> ДОБАВЬТЕ ЭТОТ БЛОК ПРОВЕРКИ <---
+    if item_data.goal_settings and db_list.list_type != models.ListType.TODO:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Цели с отслеживанием прогресса доступны только для 'Списков дел'."
+        )
+    # ---> КОНЕЦ БЛОКА ПРОВЕРКИ <---
+    
     return crud.create_list_item(db=db, item_data=item_data, list_id=list_id)
 
 @router.put("/items/{item_id}", response_model=schemas.ItemRead)

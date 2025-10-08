@@ -1,49 +1,52 @@
-<!-- frontend/src/components/ListFormModal.vue -->
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <div class="modal-content">
-      <h2>{{ isEditing ? 'Настройки списка' : 'Создать новый список' }}</h2>
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="title">Название</label>
-          <input type="text" id="title" v-model="form.title" required>
-        </div>
-        <div class="form-group">
-          <label for="description">Описание</label>
-          <textarea id="description" v-model="form.description"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="list_type">Тип списка</label>
-          <select id="list_type" v-model="form.list_type">
-            <option value="wishlist">Вишлист</option>
-            <option value="todo">Список дел</option>
-            <option value="books">Книги</option>
-            <option value="movies">Фильмы</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="privacy_level">Приватность</label>
-          <select id="privacy_level" v-model="form.privacy_level">
-            <option value="private">Приватный</option>
-            <option value="friends_only">Только для друзей</option>
-            <option value="public">Публичный</option>
-          </select>
-        </div>
-        
-        <ThemeSelector v-model="form.theme_name" />
+  <!-- ИЗМЕНЕНИЕ: Оборачиваем в transition -->
+  <transition name="fade">
+    <div v-if="isModalOpen" class="modal-backdrop" @click.self="$emit('close')">
+      <!-- ИЗМЕНЕНИЕ: Оборачиваем в transition -->
+      <transition name="pop">
+        <div v-if="isModalOpen" class="modal-content">
+          <h2>{{ isEditing ? 'Настройки списка' : 'Создать новый список' }}</h2>
+          <form @submit.prevent="handleSubmit">
+            <div class="form-group">
+              <label for="title">Название</label>
+              <input type="text" id="title" v-model="form.title" required>
+            </div>
+            <div class="form-group">
+              <label for="description">Описание</label>
+              <textarea id="description" v-model="form.description"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="list_type">Тип списка</label>
+              <select id="list_type" v-model="form.list_type">
+                <option value="wishlist">Вишлист</option>
+                <option value="todo">Список дел</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="privacy_level">Приватность</label>
+              <select id="privacy_level" v-model="form.privacy_level">
+                <option value="private">Приватный</option>
+                <option value="friends_only">Только для друзей</option>
+                <option value="public">Публичный</option>
+              </select>
+            </div>
+            
+            <ThemeSelector v-model="form.theme_name" />
 
-        <div class="form-actions">
-          <button type="button" @click="$emit('close')">Отмена</button>
-          <button type="submit">Сохранить</button>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="$emit('close')">Отмена</button>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+            <div v-if="error" class="error-message">{{ error }}</div>
+          </form>
         </div>
-        <div v-if="error" class="error-message">{{ error }}</div>
-      </form>
+      </transition>
     </div>
-  </div>
+  </transition>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue'; // ИЗМЕНЕНИЕ: Добавил watch
 import { useListsStore } from '@/store/lists';
 import ThemeSelector from './ThemeSelector.vue';
 
@@ -51,6 +54,10 @@ const props = defineProps({
   initialList: {
     type: Object,
     default: null
+  },
+  isOpen: {
+    type: Boolean,
+    default: false
   }
 });
 const emit = defineEmits(['close']);
@@ -58,6 +65,9 @@ const emit = defineEmits(['close']);
 const listsStore = useListsStore();
 const isEditing = !!props.initialList;
 const error = ref(null);
+
+// НОВОЕ: Отдельное состояние для видимости, чтобы анимация работала корректно
+const isModalOpen = ref(true); 
 
 const form = ref({
   title: props.initialList?.title || '',
@@ -80,10 +90,35 @@ const handleSubmit = async () => {
     error.value = e.message || 'Произошла ошибка.';
   }
 };
+
+// НОВОЕ: Отслеживаем пропс, чтобы управлять видимостью для анимации
+watch(() => props.isOpen, (newVal) => {
+    isModalOpen.value = newVal;
+}, { immediate: true });
 </script>
 
 <style scoped>
-/* Стили для модального окна (можете адаптировать под свой main.css) */
+/* НОВЫЕ СТИЛИ: Анимация для модального окна */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.pop-enter-active {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.pop-leave-active {
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.pop-enter-from,
+.pop-leave-to {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -97,55 +132,64 @@ const handleSubmit = async () => {
   z-index: 1000;
 }
 .modal-content {
-  background-color: var(--card-bg-color, white);
-  padding: 2rem;
-  border-radius: 8px;
+  background-color: var(--card-bg-color);
+  padding: var(--space-xl);
+  border-radius: 16px;
   width: 90%;
-  max-width: 500px;
+  max-width: 640px;
+  box-shadow: var(--shadow-3);
+  color: var(--text-color);
 }
 h2 {
   margin-top: 0;
-  color: var(--text-color);
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: var(--space-lg);
 }
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-lg);
 }
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
+  margin-bottom: var(--space-sm);
+  font-weight: 500;
 }
 .form-group input,
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.75rem;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  height: 44px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: var(--bg-color);
   color: var(--text-color);
+  font-size: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
+.form-group textarea {
+    height: auto;
+    min-height: 120px;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(155, 135, 245, 0.3);
+}
+
 .form-actions {
-  margin-top: 1.5rem;
+  margin-top: var(--space-xl);
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-}
-.form-actions button {
-    padding: 0.75rem 1.5rem;
-    border-radius: 5px;
-    border: none;
-    cursor: pointer;
-}
-.form-actions button[type="submit"] {
-    background-color: var(--primary-color);
-    color: var(--primary-text-color);
-}
-.form-actions button[type="button"] {
-    background-color: #ccc;
+  gap: var(--space-md);
 }
 .error-message {
-    color: var(--secondary-color);
-    margin-top: 1rem;
+    color: var(--destructive-color);
+    margin-top: var(--space-md);
+    text-align: right;
 }
 </style>

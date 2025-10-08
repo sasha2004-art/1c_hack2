@@ -37,9 +37,9 @@
 
       <h3>Списки пользователя</h3>
       <div v-if="profile.public_lists && profile.public_lists.length > 0" class="lists-grid">
-         <!-- Здесь можно использовать ваш компонент ListCard для отображения списков -->
          <div v-for="list in profile.public_lists" :key="list.id" class="list-card-item">
-            <router-link :to="{ name: 'ListView', params: { id: list.id } }">
+            <!-- --- ИЗМЕНЕНИЕ ЗДЕСЬ --- -->
+            <router-link :to="{ name: 'PublicListView', params: { publicKey: list.public_url_key } }">
               {{ list.title }} ({{ list.privacy_level }})
             </router-link>
          </div>

@@ -3,14 +3,14 @@
     <header class="app-header" v-if="authStore.token">
       <nav class="nav-container">
         <div class="nav-left">
-          <router-link to="/" class="nav-logo">Plotix</router-link>
-          <!-- (Этап 11) Новая ссылка на ленту -->
-          <router-link to="/feed" class="btn btn-primary">Лента</router-link>
-          <router-link to="/friends" class="btn btn-primary">Друзья</router-link>
+          <router-link to="/" class="nav-logo">Plotix Blog</router-link>
+          <router-link to="/" class="nav-link" active-class="nav-link-active">Мои списки</router-link>
+          <router-link to="/feed" class="nav-link" active-class="nav-link-active">Лента друзей</router-link>
+          <router-link to="/friends" class="nav-link" active-class="nav-link-active">Друзья</router-link>
         </div>
-        <div class="nav-user-info">
-          <span v-if="authStore.user">{{ authStore.user.email }}</span>
-          <NotificationBell /> <!-- Наш новый компонент -->
+        <div class="nav-right">
+          <span v-if="authStore.user" class="user-email">{{ authStore.user.email }}</span>
+          <NotificationBell />
           <button @click="authStore.logout()" class="btn btn-secondary">Выйти</button>
         </div>
       </nav>
@@ -23,22 +23,19 @@
 
 <script setup>
 import { onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router'; // ИЗМЕНЕНИЕ: Импортируем useRouter
+import { useRouter } from 'vue-router';
 import { useAuthStore } from './store/auth';
 import { useListsStore } from './store/lists';
 import { themes } from './themes.js';
-// Импортируем NotificationBell и useNotificationStore
 import NotificationBell from './components/NotificationBell.vue';
 import { useNotificationStore } from './store/notifications';
-// --- ИМПОРТИРУЕМ СЕРВИС ---
 import { websocketService } from '@/services/websocket.js';
 
 const authStore = useAuthStore();
 const listsStore = useListsStore();
-const notificationStore = useNotificationStore(); // Получаем экземпляр
-const router = useRouter(); // ИЗМЕНЕНИЕ: Получаем доступ к роутеру
+const notificationStore = useNotificationStore();
+const router = useRouter();
 
-// Функция для применения стилей темы
 const applyTheme = (themeName) => {
   const theme = themes[themeName] || themes.default;
   for (const [key, value] of Object.entries(theme.styles)) {
@@ -46,111 +43,109 @@ const applyTheme = (themeName) => {
   }
 };
 
-// Этот наблюдатель отвечает за применение темы, КОГДА МЫ НАХОДИМСЯ НА СТРАНИЦЕ СПИСКА.
-// Он срабатывает, когда данные о списке загружаются в хранилище.
 watch(() => listsStore.currentList, (newList) => {
   if (newList && newList.theme_name) {
     applyTheme(newList.theme_name);
   } else {
-    // Если данные списка сброшены или не удалось загрузить, применяем тему по умолчанию.
     applyTheme('default');
   }
 }, { deep: true });
 
-
-// ИЗМЕНЕНИЕ: Добавлен новый наблюдатель за сменой маршрута.
-// Этот наблюдатель отвечает за СБРОС темы, КОГДА МЫ УХОДИМ со страницы списка.
 watch(() => router.currentRoute.value.name, (routeName) => {
-  // Если мы перешли на любую страницу, которая НЕ является страницей просмотра списка,
-  // то принудительно сбрасываем тему на стандартную.
   if (routeName !== 'ListView' && routeName !== 'PublicListView') {
     applyTheme('default');
   }
 });
 
-// (Новое) Следим за изменением токена (логин/логаут)
 watch(() => authStore.token, (newToken) => {
   if (newToken) {
-    // Если пользователь вошел, запускаем опрос
-    notificationStore.fetchNotifications(); // Загружаем начальные уведомления
-    websocketService.connect(); // Устанавливаем WebSocket соединение
+    notificationStore.fetchNotifications();
+    websocketService.connect();
   } else {
-    // Если вышел - останавливаем
-    websocketService.disconnect(); // Закрываем соединение
+    websocketService.disconnect();
   }
 });
-
 
 onMounted(() => {
   if (authStore.token && !authStore.user) {
     authStore.fetchUser();
   }
-  // Применяем тему по умолчанию при самой первой загрузке приложения
   applyTheme('default');
   
-  // (Новое) При монтировании App.vue, если пользователь авторизован,
-  // запускаем опрос уведомлений
   if (authStore.token) {
     notificationStore.fetchNotifications();
     websocketService.connect();
   }
 });
-
 </script>
 
 <style scoped>
 .app-header {
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 0 2rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 100;
-  /* ИЗМЕНЕНИЕ: Делаем шапку полупрозрачной для лучшего вида с цветными фонами */
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(5px);
+  height: 64px;
 }
 
 .nav-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px;
-  max-width: 1200px;
+  height: 100%;
+  max-width: 1280px;
   margin: 0 auto;
+  padding: 0 var(--space-lg);
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-}
-
-.nav-left .btn {
-  padding: 0.5rem 1rem;
+  gap: var(--space-xl);
 }
 
 .nav-logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-  /* ИЗМЕНЕНИЕ: Цвет логотипа теперь берется из CSS переменной */
-  color: var(--text-color, #333);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+.nav-logo:hover {
+  text-decoration: none;
 }
 
-.nav-user-info {
+.nav-link {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-color);
+  opacity: 0.7;
+  padding: var(--space-sm) 0;
+  border-bottom: 3px solid transparent;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.nav-link:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+
+.nav-link-active {
+  opacity: 1;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.nav-right {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: var(--space-lg);
 }
 
-.nav-user-info span {
+.user-email {
   font-weight: 500;
-  /* ИЗМЕНЕНИЕ: Цвет текста email теперь берется из CSS переменной */
-  color: var(--text-color, #333);
-}
-
-.nav-user-info .btn {
-  padding: 0.5rem 1rem;
+  font-size: 14px;
+  color: var(--text-color);
+  opacity: 0.6;
 }
 </style>

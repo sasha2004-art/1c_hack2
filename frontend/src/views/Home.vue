@@ -1,9 +1,8 @@
-<!-- frontend/src/views/Home.vue -->
 <template>
   <div class="home-container">
     <div class="home-header">
       <h1>Мои списки</h1>
-      <button @click="openListModal(null)">Создать список</button>
+      <button @click="openListModal(null)" class="btn btn-primary">Создать список</button>
     </div>
 
     <div v-if="isLoading" class="loading-spinner">Загрузка...</div>
@@ -22,14 +21,12 @@
       />
     </div>
 
-    <!-- Модальное окно для создания/редактирования списка -->
     <ListFormModal 
       v-if="isListModalVisible" 
       :initial-list="editingList"
       @close="closeListModal"
       @list-updated="listsStore.fetchLists"
     />
-    <!-- Новое модальное окно для "Поделиться" -->
     <ShareModal 
       :is-open="isShareModalVisible" 
       :list="listToShare" 
@@ -49,12 +46,9 @@ import ShareModal from '@/components/ShareModal.vue';
 const listsStore = useListsStore();
 const { lists, isLoading } = storeToRefs(listsStore);
 
-// --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-// Устанавливаем значение по умолчанию в `false`
 const isListModalVisible = ref(false); 
 const editingList = ref(null);
 
-// --- Новое состояние для модального окна "Поделиться" ---
 const isShareModalVisible = ref(false);
 const listToShare = ref(null);
 
@@ -66,10 +60,9 @@ const openListModal = (list = null) => {
 const closeListModal = () => {
   isListModalVisible.value = false;
   editingList.value = null;
-  listsStore.fetchLists(); // Добавляем вызов для обновления списков
+  listsStore.fetchLists();
 };
 
-// --- Новые функции для управления модальным окном "Поделиться" ---
 const openShareModal = (list) => {
   listToShare.value = list;
   isShareModalVisible.value = true;
@@ -84,11 +77,9 @@ const handleDeleteList = async (listId) => {
     if(confirm('Вы уверены, что хотите удалить этот список со всеми элементами?')) {
         try {
             await listsStore.deleteList(listId);
-            // Обновляем список списков после успешного удаления
             listsStore.fetchLists();
         } catch (error) {
             console.error('Ошибка при удалении списка:', error);
-            // Дополнительная обработка ошибок, если необходимо
             alert('Не удалось удалить список. Пожалуйста, попробуйте еще раз.');
         }
     }
@@ -101,38 +92,34 @@ onMounted(() => {
 
 <style scoped>
 .home-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0 var(--space-lg);
 }
 .home-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-xl);
+  padding-top: var(--space-lg);
 }
 .home-header h1 {
   margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
   color: var(--text-color);
 }
-.home-header button {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  background-color: var(--primary-color);
-  color: var(--primary-text-color);
-}
 .lists-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
 }
 .loading-spinner, .no-lists-message {
   text-align: center;
-  padding: 2rem;
-  font-size: 1.5rem;
-  color: #888;
+  padding: var(--space-2xl);
+  font-size: 18px;
+  color: #6c757d;
+  grid-column: 1 / -1; /* Span all columns */
 }
 </style>

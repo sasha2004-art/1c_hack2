@@ -1,4 +1,3 @@
-<!-- frontend/src/components/ListFormModal.vue -->
 <template>
   <div class="modal-backdrop" @click.self="$emit('close')">
     <div class="modal-content">
@@ -33,8 +32,8 @@
         <ThemeSelector v-model="form.theme_name" />
 
         <div class="form-actions">
-          <button type="button" @click="$emit('close')">Отмена</button>
-          <button type="submit">Сохранить</button>
+          <button type="button" class="btn btn-secondary" @click="$emit('close')">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
         </div>
         <div v-if="error" class="error-message">{{ error }}</div>
       </form>
@@ -83,7 +82,6 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* Стили для модального окна (можете адаптировать под свой main.css) */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -97,55 +95,64 @@ const handleSubmit = async () => {
   z-index: 1000;
 }
 .modal-content {
-  background-color: var(--card-bg-color, white);
-  padding: 2rem;
-  border-radius: 8px;
+  background-color: var(--card-bg-color);
+  padding: var(--space-xl);
+  border-radius: 16px;
   width: 90%;
-  max-width: 500px;
+  max-width: 640px;
+  box-shadow: var(--shadow-3);
+  color: var(--text-color);
 }
 h2 {
   margin-top: 0;
-  color: var(--text-color);
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: var(--space-lg);
 }
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-lg);
 }
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
+  margin-bottom: var(--space-sm);
+  font-weight: 500;
 }
 .form-group input,
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.75rem;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  height: 44px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: var(--bg-color);
   color: var(--text-color);
+  font-size: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
+.form-group textarea {
+    height: auto;
+    min-height: 120px;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(155, 135, 245, 0.3);
+}
+
 .form-actions {
-  margin-top: 1.5rem;
+  margin-top: var(--space-xl);
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-}
-.form-actions button {
-    padding: 0.75rem 1.5rem;
-    border-radius: 5px;
-    border: none;
-    cursor: pointer;
-}
-.form-actions button[type="submit"] {
-    background-color: var(--primary-color);
-    color: var(--primary-text-color);
-}
-.form-actions button[type="button"] {
-    background-color: #ccc;
+  gap: var(--space-md);
 }
 .error-message {
-    color: var(--secondary-color);
-    margin-top: 1rem;
+    color: var(--destructive-color);
+    margin-top: var(--space-md);
+    text-align: right;
 }
 </style>

@@ -6,13 +6,10 @@
     </div>
     <div class="card-footer">
       <div class="card-tags">
-        <!-- ИЗМЕНЕНИЕ: Отображаем переведенные теги -->
         <span class="tag tag-type">{{ translatedType }}</span>
         <span class="tag tag-privacy">{{ translatedPrivacy }}</span>
       </div>
-      <!-- ИЗМЕНЕНИЕ: Добавлены кнопки, которые вызывают события -->
       <div class="card-actions">
-        <!-- --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлено условие `|| list.privacy_level === 'friends_only'` --- -->
         <button 
           v-if="list.privacy_level === 'public' || list.privacy_level === 'friends_only'" 
           @click.stop="$emit('share', list)"
@@ -39,18 +36,15 @@ const props = defineProps({
   }
 });
 
-// ИЗМЕНЕНИЕ: Определяем события, которые компонент может отправлять
 defineEmits(['edit', 'delete', 'share']);
 
 const router = useRouter();
 
-// Применяем стили из темы к карточке
 const cardStyle = computed(() => {
   const theme = themes[props.list.theme_name] || themes.default;
   return theme.styles;
 });
 
-// --- ИЗМЕНЕНИЕ: Логика перевода тегов ---
 const typeTranslations = {
   wishlist: 'Желания',
   todo: 'Дела',
@@ -61,12 +55,11 @@ const typeTranslations = {
 const privacyTranslations = {
   private: 'Приватный',
   public: 'Публичный',
-  friends_only: 'Только для друзей'
+  friends_only: 'Для друзей'
 };
 
 const translatedType = computed(() => typeTranslations[props.list.list_type] || props.list.list_type);
 const translatedPrivacy = computed(() => privacyTranslations[props.list.privacy_level] || props.list.privacy_level);
-// --- Конец логики перевода ---
 
 const navigateToList = () => {
   router.push({ name: 'ListView', params: { id: props.list.id } });
@@ -77,89 +70,92 @@ const navigateToList = () => {
 .list-card {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   border: 1px solid var(--border-color);
   background-color: var(--card-bg-color);
   color: var(--text-color);
+  min-height: 220px; /* Give it a minimum height */
 }
 
 .list-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2);
+  border-color: rgba(155, 135, 245, 0.3);
 }
 
 .card-content {
-  padding: 1.5rem;
+  padding: var(--space-lg);
   cursor: pointer;
   flex-grow: 1;
 }
 
 .card-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .card-description {
   margin: 0;
-  opacity: 0.8;
-  font-size: 0.9rem;
+  opacity: 0.75;
+  font-size: 14px;
+  line-height: 1.5;
+  /* Truncate long descriptions */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
 }
 
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-sm) var(--space-lg);
   border-top: 1px solid var(--border-color);
   background-color: rgba(0,0,0,0.02);
 }
 
 .card-tags {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .tag {
-  padding: 0.25rem 0.6rem;
+  padding: 4px 10px;
   border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  opacity: 0.9;
-}
-
-.tag-type {
-  background-color: var(--edit-color);
-  color: var(--edit-text-color);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background-color: rgba(155, 135, 245, 0.15);
+  color: #7c64d4;
 }
 
 .tag-privacy {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .card-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .action-btn {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+  font-size: 20px;
+  opacity: 0.6;
+  transition: opacity 0.2s, transform 0.2s;
+  padding: 4px;
 }
 
 .action-btn:hover {
   opacity: 1;
-}
-
-.share-btn {
-  font-size: 1.1rem; /* Можно настроить размер иконки */
+  transform: scale(1.1);
 }
 </style>

@@ -460,3 +460,28 @@ def get_friends_feed_lists(db: Session, user_id: int, skip: int = 0, limit: int 
     ).all()
 
     return lists
+
+# --- CRUD для Настроек пользователя ---
+
+def update_user_password(db: Session, db_user: models.User, new_password: str):
+    """Обновляет пароль пользователя."""
+    hashed_password = security.get_password_hash(new_password)
+    db_user.hashed_password = hashed_password
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def update_user_email(db: Session, db_user: models.User, new_email: str):
+    """Обновляет email пользователя."""
+    db_user.email = new_email
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def delete_user(db: Session, db_user: models.User):
+    """Удаляет пользователя."""
+    db.delete(db_user)
+    db.commit()
+    return db_user

@@ -250,3 +250,13 @@ class ReservationRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Схемы для настроек пользователя ---
+
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+class EmailUpdate(BaseModel):
+    current_password: str
+    new_email: EmailStr

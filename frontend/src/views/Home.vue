@@ -1,5 +1,7 @@
 <template>
   <div class="home-container">
+    <OnboardingBanner v-if="showOnboarding" @dismiss="dismissOnboarding" />
+
     <div class="home-header">
       <h1>Мои списки</h1>
       <button @click="openListModal(null)" class="btn btn-primary">Создать список</button>
@@ -43,6 +45,7 @@ import { storeToRefs } from 'pinia';
 import ListCard from '@/components/ListCard.vue';
 import ListFormModal from '@/components/ListFormModal.vue';
 import ShareModal from '@/components/ShareModal.vue';
+import OnboardingBanner from '@/components/OnboardingBanner.vue'; // Импортируем баннер
 
 const listsStore = useListsStore();
 const { lists, isLoading } = storeToRefs(listsStore);
@@ -52,6 +55,19 @@ const editingList = ref(null);
 
 const isShareModalVisible = ref(false);
 const listToShare = ref(null);
+
+// --- Логика Онбординга ---
+const showOnboarding = ref(false);
+const checkOnboarding = () => {
+  if (!localStorage.getItem('plotix-onboarding-complete')) {
+    showOnboarding.value = true;
+  }
+};
+const dismissOnboarding = () => {
+  localStorage.setItem('plotix-onboarding-complete', 'true');
+  showOnboarding.value = false;
+};
+// --- Конец логики Онбординга ---
 
 const openListModal = (list = null) => {
   editingList.value = list;
@@ -88,6 +104,7 @@ const handleDeleteList = async (listId) => {
 
 onMounted(() => {
   listsStore.fetchLists();
+  checkOnboarding(); // Проверяем при загрузке
 });
 </script>
 

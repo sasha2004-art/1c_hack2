@@ -13,6 +13,7 @@ import FriendsView from '../views/FriendsView.vue'
 import UserProfileView from '../views/UserProfileView.vue'
 // (Этап 11) Импортируем новый компонент ленты
 import FeedView from '../views/FeedView.vue'
+import ProfileSettings from '../views/ProfileSettings.vue'; // <-- Импортируем
 
 const routes = [
   {
@@ -70,6 +71,13 @@ const routes = [
     name: 'Register',
     component: Register,
     meta: { requiresGuest: true }
+  },
+  // --- НОВЫЙ МАРШРУТ ---
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: ProfileSettings,
+    meta: { requiresAuth: true }
   }
 ]
 

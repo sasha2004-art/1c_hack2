@@ -14,6 +14,8 @@ from .routers import utils
 from .routers import feed
 # (Этап 13) Импортируем роутер целей
 from .routers import goals
+# (Этап 19) Импортируем роутер настроек
+from .routers import settings
 
 # Создаем все таблицы в БД, которые унаследованы от Base
 models.Base.metadata.create_all(bind=engine)
@@ -53,6 +55,8 @@ app.include_router(utils.router)
 app.include_router(feed.router, prefix="/feed", tags=["feed"])
 # (Этап 13) Регистрируем роутер целей
 app.include_router(goals.router)
+# (Этап 19) Регистрируем роутер настроек
+app.include_router(settings.router)
 
 
 @app.get("/")

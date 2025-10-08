@@ -5,10 +5,9 @@ import { apiClient } from './auth'; // Импортируем настроенн
 export const useListsStore = defineStore('lists', () => {
   const lists = ref([]);
   const currentList = ref(null);
-  const userReservations = ref([]); // Новое состояние для бронирований
+  const userReservations = ref([]);
   const isLoading = ref(false);
   const error = ref(null);
-  // --- НОВОЕ СОСТОЯНИЕ ДЛЯ ХРАНЕНИЯ ДЕТАЛЕЙ ОШИБКИ ДОСТУПА ---
   const listAccessErrorDetails = ref(null);
 
   async function fetchLists() {
@@ -40,18 +39,16 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
   
-  // --- ИЗМЕНЕНИЕ ЗДЕСЬ: обработка новой структуры ошибки ---
   async function fetchPublicListByKey(publicKey) {
     isLoading.value = true;
     error.value = null;
     currentList.value = null; 
-    listAccessErrorDetails.value = null; // Сбрасываем детали ошибки
+    listAccessErrorDetails.value = null;
     try {
       const response = await apiClient.get(`/public/lists/${publicKey}`);
       currentList.value = response.data;
     } catch (e) {
       const errorData = e.response?.data?.detail;
-      // Проверяем, пришел ли объект с 'owner'
       if (typeof errorData === 'object' && errorData.owner) {
         listAccessErrorDetails.value = errorData;
         error.value = errorData.message;
@@ -75,7 +72,7 @@ export const useListsStore = defineStore('lists', () => {
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось создать список.';
       console.error(e);
-      throw e; // Пробрасываем ошибку дальше для обработки в компоненте
+      throw e;
     }
   }
 
@@ -109,18 +106,16 @@ export const useListsStore = defineStore('lists', () => {
   async function addItem(listId, itemData) {
     error.value = null;
     try {
-      const response = await apiClient.post(`/lists/${listId}/items`, itemData);
-      if (currentList.value && currentList.value.id === listId) {
-        // Перезагружаем список, чтобы получить актуальные данные по лайкам/комментам
-        await fetchListById(listId);
-      }
+      await apiClient.post(`/lists/${listId}/items`, itemData);
+      await fetchListById(listId);
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось создать элемент.';
       console.error(e);
-      throw e; // Пробрасываем ошибку дальше для обработки в компоненте
+      throw e;
     }
   }
 
+  // --- ВОССТАНОВЛЕННАЯ ФУНКЦИЯ ---
   async function uploadItemImage(itemId, file) {
     error.value = null;
     try {
@@ -131,7 +126,6 @@ export const useListsStore = defineStore('lists', () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      // Обновляем элемент в текущем списке
       if (currentList.value) {
         const index = currentList.value.items.findIndex(i => i.id === itemId);
         if (index !== -1) {
@@ -144,6 +138,7 @@ export const useListsStore = defineStore('lists', () => {
       throw e;
     }
   }
+  // ------------------------------------
 
   async function updateItem(itemId, itemData) {
     error.value = null;
@@ -152,7 +147,6 @@ export const useListsStore = defineStore('lists', () => {
       if (currentList.value) {
         const index = currentList.value.items.findIndex(i => i.id === itemId);
         if (index !== -1) {
-          // ИЗМЕНЕНИЕ: Заменяем объект целиком, чтобы обновить все поля, включая is_completed
           currentList.value.items[index] = response.data;
         }
       }
@@ -177,49 +171,35 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
   
-  // НОВЫЙ ACTION
   async function toggleItemCompletion(itemId) {
     const item = currentList.value?.items.find(i => i.id === itemId);
     if (!item) return;
-
     const newCompletedState = !item.is_completed;
-    
-    // Оптимистичное обновление UI
     item.is_completed = newCompletedState;
-
     try {
-      // Отправляем запрос на сервер
       await updateItem(itemId, { is_completed: newCompletedState });
     } catch (e) {
-      // Если ошибка, откатываем изменение в UI
       item.is_completed = !newCompletedState;
       alert(error.value || 'Не удалось обновить статус элемента.');
     }
   }
 
-  // --- Новые функции для лайков и комментариев ---
-
   async function toggleLike(itemId) {
     error.value = null;
-    // Находим элемент в текущем списке
     const item = currentList.value?.items.find(i => i.id === itemId);
     if (!item) return;
-
     try {
       if (item.is_liked_by_current_user) {
-        // Убираем лайк
         await apiClient.delete(`/items/${itemId}/like`);
         item.likes_count--;
         item.is_liked_by_current_user = false;
       } else {
-        // Ставим лайк
         await apiClient.post(`/items/${itemId}/like`);
         item.likes_count++;
         item.is_liked_by_current_user = true;
       }
     } catch (e) {
         error.value = e.response?.data?.detail || 'Не удалось обработать лайк.';
-        // Откатываем изменения в UI в случае ошибки
         await fetchListById(currentList.value.id);
     }
   }
@@ -263,13 +243,11 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // ИЗМЕНЕНИЕ: Добавляем publicKey как аргумент
   async function reserveItem(itemId, publicKey) {
     error.value = null;
     try {
       await apiClient.post(`/items/${itemId}/reserve`);
       if (publicKey) {
-        // ИЗМЕНЕНИЕ: Используем переданный publicKey
         await fetchPublicListByKey(publicKey); 
         await fetchUserReservations();
       }
@@ -280,13 +258,11 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // ИЗМЕНЕНИЕ: Добавляем publicKey как аргумент
   async function unreserveItem(itemId, publicKey) {
     error.value = null;
     try {
       await apiClient.delete(`/items/${itemId}/unreserve`);
       if (publicKey) {
-        // ИЗМЕНЕНИЕ: Используем переданный publicKey
         await fetchPublicListByKey(publicKey);
         await fetchUserReservations();
       }
@@ -297,7 +273,6 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // (Этап 10) Копирование элемента из чужого списка в свой
   async function copyItem(itemId, targetListId) {
     error.value = null;
     try {
@@ -309,12 +284,10 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // (НОВЫЙ ЭКШЕН)
   async function updateGoalSettings(trackerId, goalData) {
     error.value = null;
     try {
       const response = await apiClient.put(`/goals/${trackerId}`, goalData);
-      // Обновляем данные в локальном состоянии для мгновенной реакции
       if (currentList.value) {
         const itemIndex = currentList.value.items.findIndex(
           item => item.goal_tracker?.id === trackerId
@@ -330,21 +303,16 @@ export const useListsStore = defineStore('lists', () => {
     }
   }
 
-  // (Этап 14) Новый экшен для записи прогресса цели
   async function logGoalProgress(trackerId, value) {
     error.value = null;
     try {
       const response = await apiClient.post(`/goals/${trackerId}/log`, { value });
-      // Обновляем данные трекера в текущем списке для мгновенной реакции UI
       if (currentList.value) {
         const itemIndex = currentList.value.items.findIndex(
           item => item.goal_tracker?.id === trackerId
         );
         if (itemIndex !== -1) {
-          // Обновляем сам трекер
           currentList.value.items[itemIndex].goal_tracker = response.data;
-
-          // Проверяем, не завершилась ли цель, и обновляем статус элемента
           const tracker = response.data;
           const target = tracker.target_value || tracker.target_count;
           if (target && tracker.current_value >= target) {
@@ -355,17 +323,17 @@ export const useListsStore = defineStore('lists', () => {
     } catch (e) {
       error.value = e.response?.data?.detail || 'Не удалось записать прогресс.';
       console.error(e);
-      throw e; // Пробрасываем ошибку для обработки в компоненте
+      throw e;
     }
   }
 
   return { 
     lists, 
     currentList,
-    userReservations, // Экспортируем
+    userReservations,
     isLoading, 
     error,
-    listAccessErrorDetails, // <-- Экспортируем новое состояние
+    listAccessErrorDetails,
     fetchLists, 
     fetchListById,
     fetchPublicListByKey,
@@ -373,19 +341,18 @@ export const useListsStore = defineStore('lists', () => {
     updateList, 
     deleteList,
     addItem,
+    uploadItemImage, // --- ЭКСПОРТИРУЕМ ВОССТАНОВЛЕННУЮ ФУНКЦИЮ ---
     updateItem,
     deleteItem,
-    fetchUserReservations, // Экспортируем
-    reserveItem,           // Экспортируем
-    unreserveItem,         // Экспортируем
-    // Экспортируем новые функции
+    fetchUserReservations,
+    reserveItem,
+    unreserveItem,
     toggleLike,
     addComment,
-    deleteComment
-    ,
+    deleteComment,
     copyItem,
-    logGoalProgress, // <-- Экспортируем новый экшен
-    updateGoalSettings, // <-- Экспортируем новый экшен
-    toggleItemCompletion // <-- Экспортируем новый экшен
+    logGoalProgress,
+    updateGoalSettings,
+    toggleItemCompletion
   };
 });

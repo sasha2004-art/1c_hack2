@@ -1,48 +1,54 @@
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <div class="modal-content">
-      <h2>{{ isEditing ? 'Настройки списка' : 'Создать новый список' }}</h2>
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="title">Название</label>
-          <input type="text" id="title" v-model="form.title" required>
-        </div>
-        <div class="form-group">
-          <label for="description">Описание</label>
-          <textarea id="description" v-model="form.description"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="list_type">Тип списка</label>
-          <select id="list_type" v-model="form.list_type">
-            <option value="wishlist">Вишлист</option>
-            <option value="todo">Список дел</option>
-            <option value="books">Книги</option>
-            <option value="movies">Фильмы</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="privacy_level">Приватность</label>
-          <select id="privacy_level" v-model="form.privacy_level">
-            <option value="private">Приватный</option>
-            <option value="friends_only">Только для друзей</option>
-            <option value="public">Публичный</option>
-          </select>
-        </div>
-        
-        <ThemeSelector v-model="form.theme_name" />
+  <!-- ИЗМЕНЕНИЕ: Оборачиваем в transition -->
+  <transition name="fade">
+    <div v-if="isModalOpen" class="modal-backdrop" @click.self="$emit('close')">
+      <!-- ИЗМЕНЕНИЕ: Оборачиваем в transition -->
+      <transition name="pop">
+        <div v-if="isModalOpen" class="modal-content">
+          <h2>{{ isEditing ? 'Настройки списка' : 'Создать новый список' }}</h2>
+          <form @submit.prevent="handleSubmit">
+            <div class="form-group">
+              <label for="title">Название</label>
+              <input type="text" id="title" v-model="form.title" required>
+            </div>
+            <div class="form-group">
+              <label for="description">Описание</label>
+              <textarea id="description" v-model="form.description"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="list_type">Тип списка</label>
+              <select id="list_type" v-model="form.list_type">
+                <option value="wishlist">Вишлист</option>
+                <option value="todo">Список дел</option>
+                <option value="books">Книги</option>
+                <option value="movies">Фильмы</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="privacy_level">Приватность</label>
+              <select id="privacy_level" v-model="form.privacy_level">
+                <option value="private">Приватный</option>
+                <option value="friends_only">Только для друзей</option>
+                <option value="public">Публичный</option>
+              </select>
+            </div>
+            
+            <ThemeSelector v-model="form.theme_name" />
 
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" @click="$emit('close')">Отмена</button>
-          <button type="submit" class="btn btn-primary">Сохранить</button>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="$emit('close')">Отмена</button>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+            <div v-if="error" class="error-message">{{ error }}</div>
+          </form>
         </div>
-        <div v-if="error" class="error-message">{{ error }}</div>
-      </form>
+      </transition>
     </div>
-  </div>
+  </transition>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue'; // ИЗМЕНЕНИЕ: Добавил watch
 import { useListsStore } from '@/store/lists';
 import ThemeSelector from './ThemeSelector.vue';
 
@@ -57,6 +63,9 @@ const emit = defineEmits(['close']);
 const listsStore = useListsStore();
 const isEditing = !!props.initialList;
 const error = ref(null);
+
+// НОВОЕ: Отдельное состояние для видимости, чтобы анимация работала корректно
+const isModalOpen = ref(true); 
 
 const form = ref({
   title: props.initialList?.title || '',
@@ -79,9 +88,35 @@ const handleSubmit = async () => {
     error.value = e.message || 'Произошла ошибка.';
   }
 };
+
+// НОВОЕ: Отслеживаем пропс, чтобы управлять видимостью для анимации
+watch(() => props.isOpen, (newVal) => {
+    isModalOpen.value = newVal;
+}, { immediate: true });
 </script>
 
 <style scoped>
+/* НОВЫЕ СТИЛИ: Анимация для модального окна */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.pop-enter-active {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.pop-leave-active {
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.pop-enter-from,
+.pop-leave-to {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
 .modal-backdrop {
   position: fixed;
   top: 0;

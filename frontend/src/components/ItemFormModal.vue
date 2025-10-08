@@ -3,7 +3,7 @@ import { ref, watch } from 'vue';
 import { useListsStore } from '@/store/lists';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
-import { apiClient } from '@/store/auth'; // <-- Импортируем apiClient
+import { apiClient } from '@/store/auth';
 
 const props = defineProps({
   isOpen: {
@@ -27,18 +27,16 @@ const title = ref('');
 const description = ref('');
 const errorMessage = ref('');
 
-// --- (Этап 14) Новые ref для настроек цели ---
 const isGoal = ref(false);
-const goalType = ref('cumulative'); // 'cumulative' или 'check_in'
-const targetValue = ref(null); // для cumulative
-const targetCount = ref(null); // для check_in
+const goalType = ref('cumulative');
+const targetValue = ref(null);
+const targetCount = ref(null);
 const unitName = ref('');
 
-// --- НОВЫЕ ref ДЛЯ ПОДБОРА КАРТИНОК ---
 const imageSuggestions = ref([]);
 const isSuggestionsLoading = ref(false);
 let debounceTimer = null;
-const editorRef = ref(null); // Ref для доступа к Quill API
+const editorRef = ref(null);
 
 const quillOptions = {
   theme: 'snow',
@@ -104,7 +102,6 @@ watch(() => props.itemToEdit, (newItem) => {
   }
 });
 
-// --- НОВЫЙ watch ДЛЯ ПОИСКА КАРТИНОК ---
 watch(title, (newTitle) => {
   clearTimeout(debounceTimer);
   if (newTitle.trim().length < 3) {
@@ -122,21 +119,18 @@ watch(title, (newTitle) => {
     } finally {
       isSuggestionsLoading.value = false;
     }
-  }, 500); // Задержка в 500 мс
+  }, 500);
 });
 
-// --- НОВАЯ ФУНКЦИЯ ДЛЯ ВЫБОРА КАРТИНКИ ---
 const selectImage = (imageUrl) => {
-    // Используем наш прокси-сервер для вставки картинки, чтобы избежать проблем с CORS у пользователя
     const proxyUrl = `http://localhost:8000/utils/image-proxy?url=${encodeURIComponent(imageUrl)}`;
     const quill = editorRef.value?.getQuill();
     if (quill) {
         const range = quill.getSelection(true);
-        // Вставляем картинку и переводим курсор на новую строку после нее
         quill.insertEmbed(range.index, 'image', proxyUrl, 'user');
         quill.setSelection(range.index + 1);
     }
-    imageSuggestions.value = []; // Скрываем предложения после выбора
+    imageSuggestions.value = [];
 };
 
 
@@ -156,7 +150,6 @@ const handleSubmit = async () => {
     description: description.value,
   };
 
-  // Собираем данные цели отдельно
   const goalSettingsData = {
     goal_type: goalType.value,
     unit_name: unitName.value.trim() || null,
@@ -166,15 +159,12 @@ const handleSubmit = async () => {
   
   try {
     if (props.itemToEdit) {
-      // 1. Обновляем основную информацию об элементе (название, описание)
       await listsStore.updateItem(props.itemToEdit.id, itemData);
       
-      // 2. Если это цель, обновляем её настройки
       if (props.itemToEdit.goal_tracker) {
         await listsStore.updateGoalSettings(props.itemToEdit.goal_tracker.id, goalSettingsData);
       }
     } else {
-      // Логика создания нового элемента
       if (isGoal.value) {
         itemData.goal_settings = goalSettingsData;
       }
@@ -186,14 +176,13 @@ const handleSubmit = async () => {
   }
 };
 
-// (НОВАЯ ФУНКЦИЯ) Обработчик удаления элемента
 const handleDelete = async () => {
   if (!props.itemToEdit) return;
 
   if (confirm('Вы уверены, что хотите удалить этот элемент? Это действие необратимо.')) {
     try {
       await listsStore.deleteItem(props.itemToEdit.id);
-      closeModal(); // Закрываем модальное окно после успешного удаления
+      closeModal();
     } catch (error) {
       errorMessage.value = listsStore.error || 'Не удалось удалить элемент.';
     }
@@ -202,114 +191,133 @@ const handleDelete = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
-    <div class="modal-content">
-      <button class="modal-close" @click="closeModal">&times;</button>
-      <h2>{{ itemToEdit ? 'Редактировать желание' : 'Добавить новое желание' }}</h2>
-      
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="item-title">Название</label>
-          <input
-            id="item-title"
-            type="text"
-            v-model="title"
-            placeholder="Например, 'Поездка в горы'"
-            required
-          />
-        </div>
-
-        <!-- --- НОВЫЙ БЛОК ДЛЯ ПРЕДЛОЖЕНИЙ --- -->
-        <div class="suggestions-container" v-if="isSuggestionsLoading || imageSuggestions.length > 0">
-            <div v-if="isSuggestionsLoading" class="suggestions-loader">Ищем картинки...</div>
-            <div v-else class="image-suggestions-grid">
-                <img 
-                    v-for="suggestion in imageSuggestions" 
-                    :key="suggestion.id" 
-                    :src="suggestion.urls.small" 
-                    :alt="suggestion.description"
-                    @click="selectImage(suggestion.urls.regular)"
-                    class="suggestion-image"
-                />
-            </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="item-description">Описание</label>
-          <QuillEditor
-            ref="editorRef"
-            v-model:content="description"
-            contentType="html"
-            :options="quillOptions"
-            style="min-height: 150px; display: flex; flex-direction: column;"
-          />
-        </div>
-        
-        <!-- (ИЗМЕНЕНИЕ) Убираем v-if="!itemToEdit" -->
-        <div class="goal-settings-section">
-          <div class="form-group-checkbox">
-            <!-- Блокируем чекбокс при редактировании, т.к. не реализуем удаление трекера -->
-            <input type="checkbox" id="is-goal" v-model="isGoal" :disabled="!!itemToEdit && !!itemToEdit.goal_tracker" />
-            <label for="is-goal">Сделать целью с отслеживанием?</label>
-          </div>
-
-          <div v-if="isGoal" class="goal-options">
+  <!-- ИЗМЕНЕНИЕ: Оборачиваем в transition -->
+  <transition name="fade">
+    <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
+      <!-- ИЗМЕНЕНИЕ: Оборачиваем в transition -->
+      <transition name="pop">
+        <div v-if="isOpen" class="modal-content">
+          <button class="modal-close" @click="closeModal">&times;</button>
+          <h2>{{ itemToEdit ? 'Редактировать желание' : 'Добавить новое желание' }}</h2>
+          
+          <form @submit.prevent="handleSubmit">
             <div class="form-group">
-              <label>Тип цели</label>
-              <select v-model="goalType">
-                <option value="cumulative">Прогресс (накопить значение)</option>
-                <option value="check_in">Привычка (сделать N раз)</option>
-              </select>
+              <label for="item-title">Название</label>
+              <input
+                id="item-title"
+                type="text"
+                v-model="title"
+                placeholder="Например, 'Поездка в горы'"
+                required
+              />
+            </div>
+
+            <div class="suggestions-container" v-if="isSuggestionsLoading || imageSuggestions.length > 0">
+                <div v-if="isSuggestionsLoading" class="suggestions-loader">Ищем картинки...</div>
+                <div v-else class="image-suggestions-grid">
+                    <img 
+                        v-for="suggestion in imageSuggestions" 
+                        :key="suggestion.id" 
+                        :src="suggestion.urls.small" 
+                        :alt="suggestion.description"
+                        @click="selectImage(suggestion.urls.regular)"
+                        class="suggestion-image"
+                    />
+                </div>
             </div>
             
-            <div v-if="goalType === 'cumulative'" class="form-group">
-              <label for="target-value">Целевое значение</label>
-              <input id="target-value" type="number" step="0.1" v-model="targetValue" placeholder="Например: 1000" required />
-            </div>
-
-            <div v-if="goalType === 'check_in'" class="form-group">
-              <label for="target-count">Целевое количество раз</label>
-              <input id="target-count" type="number" step="1" v-model="targetCount" placeholder="Например: 30" required />
-            </div>
-
             <div class="form-group">
-              <label for="unit-name">Единица измерения</label>
-              <input id="unit-name" type="text" v-model="unitName" placeholder="Например: страниц, км, раз" />
+              <label for="item-description">Описание</label>
+              <QuillEditor
+                ref="editorRef"
+                v-model:content="description"
+                contentType="html"
+                :options="quillOptions"
+                style="min-height: 150px; display: flex; flex-direction: column;"
+              />
             </div>
-          </div>
-        </div>
+            
+            <div class="goal-settings-section">
+              <div class="form-group-checkbox">
+                <input type="checkbox" id="is-goal" v-model="isGoal" :disabled="!!itemToEdit && !!itemToEdit.goal_tracker" />
+                <label for="is-goal">Сделать целью с отслеживанием?</label>
+              </div>
 
-        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+              <div v-if="isGoal" class="goal-options">
+                <div class="form-group">
+                  <label>Тип цели</label>
+                  <select v-model="goalType">
+                    <option value="cumulative">Прогресс (накопить значение)</option>
+                    <option value="check_in">Привычка (сделать N раз)</option>
+                  </select>
+                </div>
+                
+                <div v-if="goalType === 'cumulative'" class="form-group">
+                  <label for="target-value">Целевое значение</label>
+                  <input id="target-value" type="number" step="0.1" v-model="targetValue" placeholder="Например: 1000" required />
+                </div>
 
-        <!-- (ИЗМЕНЕНИЕ) Обновляем блок с кнопками -->
-        <div class="form-actions">
-          <!-- Новая кнопка "Удалить", видна только при редактировании -->
-          <button
-            v-if="itemToEdit"
-            type="button"
-            class="btn-danger"
-            @click="handleDelete"
-          >
-            Удалить
-          </button>
-          
-          <!-- Пустой div-распорка для выравнивания -->
-          <div class="spacer"></div>
-          
-          <!-- Существующие кнопки -->
-          <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
-          <button type="submit" class="btn-primary">
-            {{ itemToEdit ? 'Сохранить' : 'Добавить' }}
-          </button>
+                <div v-if="goalType === 'check_in'" class="form-group">
+                  <label for="target-count">Целевое количество раз</label>
+                  <input id="target-count" type="number" step="1" v-model="targetCount" placeholder="Например: 30" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="unit-name">Единица измерения</label>
+                  <input id="unit-name" type="text" v-model="unitName" placeholder="Например: страниц, км, раз" />
+                </div>
+              </div>
+            </div>
+
+            <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+
+            <div class="form-actions">
+              <button
+                v-if="itemToEdit"
+                type="button"
+                class="btn-danger"
+                @click="handleDelete"
+              >
+                Удалить
+              </button>
+              
+              <div class="spacer"></div>
+              
+              <button type="button" class="btn-secondary" @click="closeModal">Отмена</button>
+              <button type="submit" class="btn-primary">
+                {{ itemToEdit ? 'Сохранить' : 'Добавить' }}
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </transition>
     </div>
-  </div>
+  </transition>
 </template>
 
 
 <style scoped>
-/* Стили остаются без изменений */
+/* НОВЫЕ СТИЛИ: Анимация для модального окна */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.pop-enter-active {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.pop-leave-active {
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.pop-enter-from,
+.pop-leave-to {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -377,7 +385,8 @@ h2 {
   color: #4B0082;
 }
 
-.form-group input[type="text"] {
+.form-group input[type="text"],
+.form-group input[type="number"] { /* ИЗМЕНЕНИЕ: добавил number */
   width: 100%;
   padding: 10px;
   border: 1px solid #D8BFD8;
@@ -385,21 +394,22 @@ h2 {
   font-size: 1rem;
   background-color: #f9f9f9;
   color: #333;
+  box-sizing: border-box; /* ИЗМЕНЕНИЕ: для корректного рендеринга */
 }
-.form-group input[type="text"]:focus {
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus { /* ИЗМЕНЕНИЕ: добавил number */
   outline: none;
   border-color: #8A2BE2;
 }
 
 .form-actions {
   display: flex;
-  justify-content: flex-start; /* Выравнивание по левому краю */
+  justify-content: flex-start;
   gap: 1rem;
   margin-top: 1.5rem;
-  align-items: center; /* Центрирование по вертикали */
+  align-items: center;
 }
 
-/* Распорка, чтобы растолкнуть кнопки по краям */
 .spacer {
   flex-grow: 1;
 }
@@ -422,7 +432,6 @@ h2 {
   background-color: #6c757d;
   color: white;
 }
-/* Новый стиль для кнопки удаления */
 .btn-danger {
   background-color: var(--secondary-color, #dc3545);
   color: var(--secondary-text-color, white);
@@ -454,7 +463,6 @@ h2 {
   color: #333;
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ ПРЕДЛОЖЕНИЙ --- */
 .suggestions-container {
     margin-bottom: 1rem;
     background-color: #f9f9f9;
@@ -485,7 +493,6 @@ h2 {
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-/* (Этап 14) Стили для настроек цели */
 .goal-settings-section {
   border: 1px solid #D8BFD8;
   border-radius: 4px;

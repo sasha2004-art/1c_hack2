@@ -152,6 +152,7 @@ export const useListsStore = defineStore('lists', () => {
       if (currentList.value) {
         const index = currentList.value.items.findIndex(i => i.id === itemId);
         if (index !== -1) {
+          // ИЗМЕНЕНИЕ: Заменяем объект целиком, чтобы обновить все поля, включая is_completed
           currentList.value.items[index] = response.data;
         }
       }
@@ -173,6 +174,26 @@ export const useListsStore = defineStore('lists', () => {
       error.value = e.response?.data?.detail || 'Не удалось удалить элемент.';
       console.error(e);
       throw e;
+    }
+  }
+  
+  // НОВЫЙ ACTION
+  async function toggleItemCompletion(itemId) {
+    const item = currentList.value?.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const newCompletedState = !item.is_completed;
+    
+    // Оптимистичное обновление UI
+    item.is_completed = newCompletedState;
+
+    try {
+      // Отправляем запрос на сервер
+      await updateItem(itemId, { is_completed: newCompletedState });
+    } catch (e) {
+      // Если ошибка, откатываем изменение в UI
+      item.is_completed = !newCompletedState;
+      alert(error.value || 'Не удалось обновить статус элемента.');
     }
   }
 
@@ -364,6 +385,7 @@ export const useListsStore = defineStore('lists', () => {
     ,
     copyItem,
     logGoalProgress, // <-- Экспортируем новый экшен
-    updateGoalSettings // <-- Экспортируем новый экшен
+    updateGoalSettings, // <-- Экспортируем новый экшен
+    toggleItemCompletion // <-- Экспортируем новый экшен
   };
 });

@@ -1,7 +1,9 @@
 <!-- frontend/src/components/LikeButton.vue -->
 <template>
     <div class="like-button icon-button" @click="handleLike">
-        <span :class="{ 'is-liked': item.is_liked_by_current_user }">❤️</span>
+        <span :class="{ 'is-liked': item.is_liked_by_current_user }">
+            ❤️
+        </span>
         <span>{{ item.likes_count }}</span>
     </div>
 </template>
@@ -19,7 +21,6 @@ const props = defineProps({
 const listsStore = useListsStore();
 
 const handleLike = () => {
-    // В публичном режиме без авторизации лайкать нельзя (можно добавить проверку)
     listsStore.toggleLike(props.item.id);
 };
 </script>
@@ -33,13 +34,10 @@ const handleLike = () => {
 }
 .like-button span:first-child {
     font-size: 1.2rem;
-    transition: transform 0.2s, filter 0.2s;
-    /* По умолчанию лайк "серый" */
-    filter: grayscale(1);
+    transition: transform 0.2s, color 0.2s; /* Изменение: Добавили transition для color */
 }
 .like-button .is-liked {
-    /* Когда лайк есть, он цветной и чуть больше */
-    filter: grayscale(0);
+    color: var(--color-soft-red); /* Изменение: Красный цвет для лайка */
     transform: scale(1.1);
 }
 </style>

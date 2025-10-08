@@ -91,12 +91,15 @@ a:hover {
   transition: all 0.2s ease-in-out;
 }
 
+/* ИЗМЕНЕНИЕ: Улучшенный hover и active эффект */
 .btn:hover {
   text-decoration: none;
-  transform: scale(1.02);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
 }
 .btn:active {
-  transform: scale(0.98);
+  transform: translateY(0px) scale(0.98);
+  box-shadow: var(--shadow-1);
 }
 
 .btn-primary {
